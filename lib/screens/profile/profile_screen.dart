@@ -324,8 +324,7 @@ class ProfileScreen extends StatelessWidget {
         student.motherName != null ||
         student.gender != null ||
         student.dob != null ||
-        student.bloodGroup != null ||
-        student.category != null;
+        student.bloodGroup != null;
   }
 
   static List<Widget> _buildPersonalInfoTiles(dynamic student) {
@@ -378,13 +377,6 @@ class ProfileScreen extends StatelessWidget {
         icon: Icons.water_drop_outlined,
         title: 'Blood Group',
         subtitle: student.bloodGroup!,
-      ));
-    }
-    if (student.category != null) {
-      tiles.add((
-        icon: Icons.category_outlined,
-        title: 'Category',
-        subtitle: student.category!,
       ));
     }
 
