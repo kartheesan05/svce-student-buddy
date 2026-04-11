@@ -155,7 +155,7 @@ class _GreetingCard extends StatelessWidget {
     final today = DateFormat('EEEE, d MMMM').format(DateTime.now());
 
     return Card(
-      color: colorScheme.primaryContainer,
+      color: colorScheme.surfaceContainerHigh,
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Row(

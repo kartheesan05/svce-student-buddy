@@ -61,7 +61,7 @@ class _ScheduleScreenState extends State<ScheduleScreen>
                 indicatorSize: TabBarIndicatorSize.label,
                 dividerColor: Colors.transparent,
               ),
-              colorScheme.surface,
+              Theme.of(context).scaffoldBackgroundColor,
             ),
           ),
         ],
