@@ -4,8 +4,9 @@ import '../data/models/schedule_entry.dart';
 class ScheduleTile extends StatelessWidget {
   final ScheduleEntry entry;
   final bool isNow;
+  final VoidCallback? onTap;
 
-  const ScheduleTile({super.key, required this.entry, this.isNow = false});
+  const ScheduleTile({super.key, required this.entry, this.isNow = false, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -14,7 +15,10 @@ class ScheduleTile extends StatelessWidget {
 
     return Card.filled(
       color: isNow ? colorScheme.primaryContainer : null,
-      child: Padding(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
@@ -96,6 +100,7 @@ class ScheduleTile extends StatelessWidget {
               ),
           ],
         ),
+      ),
       ),
     );
   }

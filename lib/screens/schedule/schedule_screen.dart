@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../data/mock_data.dart';
 import '../../data/models/schedule_entry.dart';
 import '../../widgets/schedule_tile.dart';
+import '../courses/course_detail_screen.dart';
 
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({super.key});
@@ -186,7 +187,22 @@ class _DayScheduleState extends State<_DaySchedule>
           },
           child: Padding(
             padding: const EdgeInsets.only(bottom: 4),
-            child: ScheduleTile(entry: widget.classes[i]),
+            child: ScheduleTile(
+              entry: widget.classes[i],
+              onTap: () {
+                final course = MockData.courses.where(
+                  (c) => c.code == widget.classes[i].courseCode,
+                ).firstOrNull;
+                if (course != null) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CourseDetailScreen(course: course),
+                    ),
+                  );
+                }
+              },
+            ),
           ),
         );
       },

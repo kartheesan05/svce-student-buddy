@@ -5,6 +5,7 @@ import '../../data/models/schedule_entry.dart';
 import '../../widgets/animated_progress_ring.dart';
 import '../../widgets/schedule_tile.dart';
 import '../../widgets/staggered_column.dart';
+import '../courses/course_detail_screen.dart';
 import '../results/results_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -72,10 +73,36 @@ class HomeScreen extends StatelessWidget {
                         ),
                       )
                     else
-                      ...todayClasses.map((entry) => Padding(
+                      ...todayClasses.take(3).map((entry) => Padding(
                             padding: const EdgeInsets.only(bottom: 4),
-                            child: ScheduleTile(entry: entry),
+                            child: ScheduleTile(
+                              entry: entry,
+                              onTap: () {
+                                final course = MockData.courses.where(
+                                  (c) => c.code == entry.courseCode,
+                                ).firstOrNull;
+                                if (course != null) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => CourseDetailScreen(course: course),
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
                           )),
+                    if (todayClasses.length > 3)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Center(
+                          child: TextButton.icon(
+                            onPressed: onViewSchedule,
+                            icon: const Icon(Icons.expand_more, size: 18),
+                            label: Text('+${todayClasses.length - 3} more classes'),
+                          ),
+                        ),
+                      ),
                     const SizedBox(height: 20),
                     _SectionHeader(
                       title: 'Attendance Overview',
