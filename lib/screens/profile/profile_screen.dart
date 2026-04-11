@@ -118,7 +118,7 @@ class ProfileScreen extends StatelessWidget {
                     const SizedBox(height: 8),
                     SizedBox(
                       width: double.infinity,
-                      child: Card(
+                      child: Card.filled(
                         clipBehavior: Clip.antiAlias,
                         child: Column(
                           children: [
@@ -152,7 +152,7 @@ class ProfileScreen extends StatelessWidget {
                     const SizedBox(height: 8),
                     SizedBox(
                       width: double.infinity,
-                      child: Card(
+                      child: Card.filled(
                         clipBehavior: Clip.antiAlias,
                         child: Column(
                           children: [
@@ -185,7 +185,7 @@ class ProfileScreen extends StatelessWidget {
                     const SizedBox(height: 8),
                     SizedBox(
                       width: double.infinity,
-                      child: Card(
+                      child: Card.filled(
                         clipBehavior: Clip.antiAlias,
                         child: Column(
                           children: [

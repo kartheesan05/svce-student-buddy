@@ -22,7 +22,7 @@ class CourseCard extends StatelessWidget {
       indicatorColor = colorScheme.error;
     }
 
-    return Card(
+    return Card.filled(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,

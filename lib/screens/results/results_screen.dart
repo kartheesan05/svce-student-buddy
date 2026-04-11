@@ -109,7 +109,7 @@ class _SgpaTrendChartState extends State<_SgpaTrendChart>
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return Card.filled(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -250,7 +250,7 @@ class _SemesterSummary extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: Card(
+          child: Card.filled(
             color: colorScheme.primaryContainer,
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -284,7 +284,7 @@ class _SemesterSummary extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: Card(
+          child: Card.filled(
             color: colorScheme.tertiaryContainer,
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -318,7 +318,7 @@ class _SemesterSummary extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: Card(
+          child: Card.filled(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -379,7 +379,7 @@ class _GradeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return Card.filled(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(

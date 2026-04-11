@@ -89,7 +89,7 @@ class CourseDetailScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           if (classesCanMiss != null)
-            Card(
+            Card.filled(
               color: classesCanMiss > 0
                   ? colorScheme.tertiaryContainer
                   : colorScheme.errorContainer,
@@ -236,7 +236,7 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Card(
+      child: Card.filled(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
           child: Column(

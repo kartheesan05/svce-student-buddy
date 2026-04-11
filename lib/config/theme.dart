@@ -31,6 +31,8 @@ class AppTheme {
         indicatorColor: colorScheme.secondaryContainer,
       ),
       cardTheme: CardThemeData(
+        elevation: 0,
+        color: colorScheme.surfaceContainerHighest,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),

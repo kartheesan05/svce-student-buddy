@@ -58,7 +58,7 @@ class HomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     if (todayClasses.isEmpty)
-                      Card(
+                      Card.filled(
                         child: Padding(
                           padding: const EdgeInsets.all(24),
                           child: Center(
@@ -154,7 +154,7 @@ class _GreetingCard extends StatelessWidget {
             : 'Good Evening';
     final today = DateFormat('EEEE, d MMMM').format(DateTime.now());
 
-    return Card(
+    return Card.filled(
       color: colorScheme.surfaceContainerHigh,
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -251,7 +251,7 @@ class _AttendanceOverviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final lowCourses =
         MockData.courses.where((c) => c.isAttendanceLow).toList();
-    return Card(
+    return Card.filled(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Row(
@@ -379,7 +379,7 @@ class _StatChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Card(
+      child: Card.filled(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
           child: Column(

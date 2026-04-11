@@ -12,7 +12,7 @@ class ScheduleTile extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Card(
+    return Card.filled(
       color: isNow ? colorScheme.primaryContainer : null,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
