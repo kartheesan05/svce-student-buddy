@@ -21,17 +21,19 @@ class _NavigationShellState extends State<NavigationShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        switchInCurve: Curves.easeOut,
-        switchOutCurve: Curves.easeIn,
-        transitionBuilder: (child, animation) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        child: KeyedSubtree(
-          key: ValueKey(_currentIndex),
-          child: _buildScreen(),
-        ),
+      body: IndexedStack(
+        index: _currentIndex,
+        sizing: StackFit.expand,
+        children: [
+          HomeScreen(
+            onViewCourses: () => _onTabSelected(1),
+            onViewInternalMarks: () => _onTabSelected(2),
+            onViewProfile: () => _onTabSelected(3),
+          ),
+          const CoursesScreen(),
+          const InternalMarksScreen(),
+          const ProfileScreen(),
+        ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
@@ -60,24 +62,5 @@ class _NavigationShellState extends State<NavigationShell> {
         ],
       ),
     );
-  }
-
-  Widget _buildScreen() {
-    switch (_currentIndex) {
-      case 0:
-        return HomeScreen(
-          onViewCourses: () => _onTabSelected(1),
-          onViewInternalMarks: () => _onTabSelected(2),
-          onViewProfile: () => _onTabSelected(3),
-        );
-      case 1:
-        return const CoursesScreen();
-      case 2:
-        return const InternalMarksScreen();
-      case 3:
-        return const ProfileScreen();
-      default:
-        return const SizedBox.shrink();
-    }
   }
 }

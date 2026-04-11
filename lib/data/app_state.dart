@@ -7,6 +7,18 @@ import 'models/semester_result.dart';
 import 'models/student.dart';
 import 'prefs_service.dart';
 
+String _userVisibleNetworkError(Object error) {
+  final s = error.toString();
+  if (s.contains('Failed host lookup') ||
+      s.contains('SocketException') ||
+      s.contains('ClientException') ||
+      s.contains('Network is unreachable') ||
+      s.contains('Connection timed out')) {
+    return "Can't reach the server. Check your internet connection and try again.";
+  }
+  return s;
+}
+
 class AppState extends ChangeNotifier {
   final ApiService api = ApiService();
   late final PrefsService prefs;
@@ -45,10 +57,11 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       return e.message;
     } catch (e) {
-      error = e.toString();
+      final message = _userVisibleNetworkError(e);
+      error = message;
       isLoading = false;
       notifyListeners();
-      return e.toString();
+      return message;
     }
   }
 
