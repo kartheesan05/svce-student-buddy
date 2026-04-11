@@ -2,7 +2,20 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const _baseUrl = 'https://android.svce.ac.in/api/v2';
+  /// Set at build time: `flutter run --dart-define=API_DOMAIN=host.example.com`
+  /// or `--dart-define-from-file=secrets.json` (copy secrets.example.json).
+  static const String _apiDomain = String.fromEnvironment('API_DOMAIN');
+
+  static String get _baseUrl {
+    final host = _apiDomain.trim();
+    if (host.isEmpty) {
+      throw StateError(
+        'API_DOMAIN is not set. Pass --dart-define=API_DOMAIN=<host> when building, '
+        'or use --dart-define-from-file=secrets.json.',
+      );
+    }
+    return 'https://$host/api/v2';
+  }
 
   String? uaNo;
   String? uaType;
