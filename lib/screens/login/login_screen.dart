@@ -49,7 +49,8 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     final appState = AppStateScope.of(context);
-    final username = _usernameController.text.trim();
+    final rawInput = _usernameController.text.trim();
+    final username = rawInput.replaceAll(RegExp(r'@svce\.ac\.in$', caseSensitive: false), '').trim();
     final password = _passwordController.text;
     final result = await appState.login(username, password);
 
@@ -60,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _error = result);
     } else {
       if (_rememberMe) {
-        await appState.prefs.saveCredentials(username, password);
+        await appState.prefs.saveCredentials(rawInput, password);
       } else {
         await appState.prefs.clearCredentials();
       }
@@ -88,7 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Diary',
+                  'SVCE Diary',
                   style: theme.textTheme.headlineLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: colorScheme.primary,
@@ -105,9 +106,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextFormField(
                   controller: _usernameController,
                   decoration: const InputDecoration(
-                    labelText: 'Registration Number',
-                    prefixIcon: Icon(Icons.person_outline),
+                    labelText: 'SVCE Email',
+                    hintText: '0000xx0000@svce.ac.in',
+                    prefixIcon: Icon(Icons.email_outlined),
                   ),
+                  keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
                   autocorrect: false,
                   validator: (v) =>

@@ -1,16 +1,72 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import '../../data/app_state.dart';
+import '../../data/models/attendance_entry.dart';
 import '../../data/models/course.dart';
 import '../../widgets/animated_progress_ring.dart';
 
-class CourseDetailScreen extends StatelessWidget {
+class CourseDetailScreen extends StatefulWidget {
   final Course course;
 
   const CourseDetailScreen({super.key, required this.course});
 
   @override
+  State<CourseDetailScreen> createState() => _CourseDetailScreenState();
+}
+
+class _CourseDetailScreenState extends State<CourseDetailScreen> {
+  List<AttendanceEntry>? _entries;
+  bool _loading = true;
+  bool _fetched = false;
+  String? _error;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_fetched) {
+      _fetched = true;
+      _fetchAttendance();
+    }
+  }
+
+  Future<void> _fetchAttendance() async {
+    final courseNo = widget.course.courseNo;
+    if (courseNo == null || courseNo.isEmpty) {
+      setState(() {
+        _loading = false;
+        _error = 'No course number available';
+      });
+      return;
+    }
+
+    try {
+      final api = AppStateScope.of(context).api;
+      final data = await api.getAttendanceBySubject(courseNo);
+      final list = data['AttendanceBySubject'] as List<dynamic>? ?? [];
+      final entries = list
+          .map((e) => AttendanceEntry.fromJson(e as Map<String, dynamic>))
+          .toList()
+        ..sort((a, b) => b.date.compareTo(a.date));
+
+      if (!mounted) return;
+      setState(() {
+        _entries = entries;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = e.toString();
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final course = widget.course;
     final attendance = course.attendancePercent;
 
     final Color attendanceColor;
@@ -25,9 +81,7 @@ class CourseDetailScreen extends StatelessWidget {
     final classesCanMiss = _classesCanMiss();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(course.code),
-      ),
+      appBar: AppBar(title: Text(course.code)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -149,16 +203,166 @@ class CourseDetailScreen extends StatelessWidget {
             value: course.type.name[0].toUpperCase() + course.type.name.substring(1),
             theme: theme,
           ),
+          const SizedBox(height: 24),
+          Text(
+            'Attendance Log',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _AttendanceLog(
+            entries: _entries,
+            loading: _loading,
+            error: _error,
+            theme: theme,
+            colorScheme: colorScheme,
+          ),
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
 
   int? _classesCanMiss() {
-    if (course.totalClasses == 0) return null;
-    final canMiss =
-        (course.attendedClasses / 0.75 - course.totalClasses).floor();
-    return canMiss;
+    if (widget.course.totalClasses == 0) return null;
+    return (widget.course.attendedClasses / 0.75 - widget.course.totalClasses).floor();
+  }
+}
+
+class _AttendanceLog extends StatelessWidget {
+  final List<AttendanceEntry>? entries;
+  final bool loading;
+  final String? error;
+  final ThemeData theme;
+  final ColorScheme colorScheme;
+
+  const _AttendanceLog({
+    required this.entries,
+    required this.loading,
+    this.error,
+    required this.theme,
+    required this.colorScheme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 32),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (error != null) {
+      return Card.filled(
+        color: colorScheme.errorContainer,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            error!,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onErrorContainer,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final list = entries ?? [];
+    if (list.isEmpty) {
+      return Card.filled(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: Text(
+              'No attendance records found',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final dateFormat = DateFormat('d MMM, EEE');
+
+    return Card.filled(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: List.generate(list.length, (i) {
+          final entry = list[i];
+          final isLast = i == list.length - 1;
+
+          final Color statusColor;
+          final IconData statusIcon;
+          final String statusLabel;
+          switch (entry.status) {
+            case AttendanceStatus.present:
+              statusColor = Colors.green;
+              statusIcon = Icons.check_circle;
+              statusLabel = 'Present';
+            case AttendanceStatus.absent:
+              statusColor = colorScheme.error;
+              statusIcon = Icons.cancel;
+              statusLabel = 'Absent';
+            case AttendanceStatus.onDuty:
+              statusColor = Colors.blue;
+              statusIcon = Icons.work_outline;
+              statusLabel = 'On Duty';
+          }
+
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    Icon(statusIcon, color: statusColor, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            dateFormat.format(entry.date),
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            'Period ${entry.period}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: statusColor.withAlpha(25),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        statusLabel,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: statusColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (!isLast) Divider(height: 1, indent: 48, color: colorScheme.outlineVariant),
+            ],
+          );
+        }),
+      ),
+    );
   }
 }
 

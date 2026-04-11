@@ -96,6 +96,14 @@ class ApiService {
     });
   }
 
+  Future<Map<String, dynamic>> getAttendanceBySubject(String courseNo) async {
+    return _post('attendance/attsub', {
+      'id': regNo!,
+      'sub': courseNo,
+      'sessionno': sessionNo.toString(),
+    });
+  }
+
   Future<Map<String, dynamic>> getInternalMarks(
     int session,
     int semester,
