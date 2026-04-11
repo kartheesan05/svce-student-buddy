@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
+import '../data/prefs_service.dart';
 
 enum ThemeSource { dynamic, defaultSeed }
 
 class ThemeProvider extends ChangeNotifier {
-  ThemeMode _themeMode = ThemeMode.system;
-  ThemeSource _themeSource = ThemeSource.dynamic;
+  final PrefsService _prefs;
+
+  late ThemeMode _themeMode;
+  late ThemeSource _themeSource;
+
+  ThemeProvider({required PrefsService prefs}) : _prefs = prefs {
+    _themeMode = prefs.themeMode;
+    _themeSource = prefs.themeSource;
+  }
 
   ThemeMode get themeMode => _themeMode;
   ThemeSource get themeSource => _themeSource;
@@ -14,12 +22,14 @@ class ThemeProvider extends ChangeNotifier {
   void setThemeMode(ThemeMode mode) {
     if (_themeMode == mode) return;
     _themeMode = mode;
+    _prefs.setThemeMode(mode);
     notifyListeners();
   }
 
   void setThemeSource(ThemeSource source) {
     if (_themeSource == source) return;
     _themeSource = source;
+    _prefs.setThemeSource(source);
     notifyListeners();
   }
 

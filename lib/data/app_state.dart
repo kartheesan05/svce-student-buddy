@@ -5,9 +5,11 @@ import 'models/internal_mark.dart';
 import 'models/schedule_entry.dart';
 import 'models/semester_result.dart';
 import 'models/student.dart';
+import 'prefs_service.dart';
 
 class AppState extends ChangeNotifier {
   final ApiService api = ApiService();
+  late final PrefsService prefs;
 
   Student? student;
   List<Course> courses = [];
