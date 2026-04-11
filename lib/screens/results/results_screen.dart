@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../data/mock_data.dart';
+import '../../data/app_state.dart';
 import '../../data/models/semester_result.dart';
 import '../../widgets/animated_progress_ring.dart';
 
@@ -11,13 +11,47 @@ class ResultsScreen extends StatefulWidget {
 }
 
 class _ResultsScreenState extends State<ResultsScreen> {
-  int _selectedSemester = MockData.semesterResults.length - 1;
+  int _selectedSemester = -1;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final results = MockData.semesterResults;
+    final appState = AppStateScope.of(context);
+    final results = appState.semesterResults;
+
+    if (results.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Results')),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.assignment_outlined,
+                  size: 64, color: colorScheme.onSurfaceVariant),
+              const SizedBox(height: 12),
+              Text(
+                'No results available',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Results will appear once published',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_selectedSemester < 0 || _selectedSemester >= results.length) {
+      _selectedSemester = results.length - 1;
+    }
     final selected = results[_selectedSemester];
 
     return Scaffold(
@@ -332,7 +366,10 @@ class _SemesterSummary extends StatelessWidget {
                     ),
                     child: Center(
                       child: Text(
-                        '${result.creditsEarned}',
+                        result.creditsEarned.toStringAsFixed(
+                            result.creditsEarned == result.creditsEarned.roundToDouble()
+                                ? 0
+                                : 1),
                         style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -364,6 +401,8 @@ class _GradeCard extends StatelessWidget {
 
   Color _gradeColor() {
     switch (grade.grade) {
+      case 'O':
+        return Colors.green.shade700;
       case 'A+':
       case 'A':
         return Colors.green;
@@ -372,6 +411,8 @@ class _GradeCard extends StatelessWidget {
       case 'B+':
       case 'B':
         return Colors.orange;
+      case 'P':
+        return Colors.blue;
       default:
         return Colors.red;
     }
@@ -416,7 +457,7 @@ class _GradeCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${grade.courseCode}  •  ${grade.credits} credits',
+                    '${grade.courseCode}  •  ${grade.credits.toStringAsFixed(grade.credits == grade.credits.roundToDouble() ? 0 : 1)} credits',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -424,13 +465,14 @@ class _GradeCard extends StatelessWidget {
                 ],
               ),
             ),
-            Text(
-              '${grade.gradePoint}',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurfaceVariant,
+            if (grade.gradePoint > 0)
+              Text(
+                '${grade.gradePoint}',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.onSurfaceVariant,
+                ),
               ),
-            ),
           ],
         ),
       ),

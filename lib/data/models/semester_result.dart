@@ -2,8 +2,9 @@ class SemesterResult {
   final int semester;
   final double sgpa;
   final double cgpa;
-  final int creditsEarned;
+  final double creditsEarned;
   final List<CourseGrade> grades;
+  final String? result;
 
   const SemesterResult({
     required this.semester,
@@ -11,13 +12,14 @@ class SemesterResult {
     required this.cgpa,
     required this.creditsEarned,
     required this.grades,
+    this.result,
   });
 }
 
 class CourseGrade {
   final String courseCode;
   final String courseName;
-  final int credits;
+  final double credits;
   final String grade;
   final int gradePoint;
 
@@ -28,4 +30,25 @@ class CourseGrade {
     required this.grade,
     required this.gradePoint,
   });
+
+  static int gradeToPoint(String grade) {
+    switch (grade) {
+      case 'O':
+        return 10;
+      case 'A+':
+        return 9;
+      case 'A':
+        return 8;
+      case 'B+':
+        return 7;
+      case 'B':
+        return 6;
+      case 'C':
+        return 5;
+      case 'P':
+        return 0;
+      default:
+        return 0;
+    }
+  }
 }

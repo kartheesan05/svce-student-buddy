@@ -2,21 +2,23 @@ class Course {
   final String code;
   final String name;
   final String instructor;
-  final int credits;
+  final int? credits;
   final int totalClasses;
   final int attendedClasses;
-  final String room;
+  final String? room;
   final CourseType type;
+  final String? courseNo;
 
   const Course({
     required this.code,
     required this.name,
     required this.instructor,
-    required this.credits,
+    this.credits,
     required this.totalClasses,
     required this.attendedClasses,
-    required this.room,
+    this.room,
     this.type = CourseType.theory,
+    this.courseNo,
   });
 
   double get attendancePercent =>

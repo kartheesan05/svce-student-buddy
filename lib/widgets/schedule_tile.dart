@@ -73,7 +73,9 @@ class ScheduleTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${entry.courseCode}  •  ${entry.room}',
+                    [entry.courseCode, entry.room]
+                        .where((s) => s.isNotEmpty)
+                        .join('  •  '),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: isNow
                           ? colorScheme.onPrimaryContainer.withAlpha(180)

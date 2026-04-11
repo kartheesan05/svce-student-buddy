@@ -33,100 +33,117 @@ class CourseDetailScreen extends StatelessWidget {
         children: [
           _AnimatedHeader(course: course, theme: theme, colorScheme: colorScheme),
           const SizedBox(height: 24),
-          Center(
-            child: AnimatedProgressRing(
-              progress: attendance / 100,
-              size: 160,
-              strokeWidth: 14,
-              progressColor: attendanceColor,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '${attendance.toStringAsFixed(1)}%',
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: attendanceColor,
-                    ),
-                  ),
-                  Text(
-                    'Attendance',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              _StatCard(
-                label: 'Attended',
-                value: '${course.attendedClasses}',
-                icon: Icons.check_circle_outline,
-                color: Colors.green,
-                theme: theme,
-              ),
-              const SizedBox(width: 8),
-              _StatCard(
-                label: 'Missed',
-                value: '${course.totalClasses - course.attendedClasses}',
-                icon: Icons.cancel_outlined,
-                color: colorScheme.error,
-                theme: theme,
-              ),
-              const SizedBox(width: 8),
-              _StatCard(
-                label: 'Total',
-                value: '${course.totalClasses}',
-                icon: Icons.calendar_today_outlined,
-                color: colorScheme.primary,
-                theme: theme,
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          if (classesCanMiss != null)
-            Card.filled(
-              color: classesCanMiss > 0
-                  ? colorScheme.tertiaryContainer
-                  : colorScheme.errorContainer,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
+          if (course.totalClasses > 0) ...[
+            Center(
+              child: AnimatedProgressRing(
+                progress: attendance / 100,
+                size: 160,
+                strokeWidth: 14,
+                progressColor: attendanceColor,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      classesCanMiss > 0
-                          ? Icons.info_outline
-                          : Icons.warning_amber_rounded,
-                      color: classesCanMiss > 0
-                          ? colorScheme.onTertiaryContainer
-                          : colorScheme.onErrorContainer,
+                    Text(
+                      '${attendance.toStringAsFixed(1)}%',
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: attendanceColor,
+                      ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        classesCanMiss > 0
-                            ? 'You can miss up to $classesCanMiss more class${classesCanMiss > 1 ? 'es' : ''} and stay above 75%'
-                            : 'You need to attend the next ${-classesCanMiss} class${classesCanMiss < -1 ? 'es' : ''} to reach 75%',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: classesCanMiss > 0
-                              ? colorScheme.onTertiaryContainer
-                              : colorScheme.onErrorContainer,
-                        ),
+                    Text(
+                      'Attendance',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
                 ),
               ),
             ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                _StatCard(
+                  label: 'Attended',
+                  value: '${course.attendedClasses}',
+                  icon: Icons.check_circle_outline,
+                  color: Colors.green,
+                  theme: theme,
+                ),
+                const SizedBox(width: 8),
+                _StatCard(
+                  label: 'Missed',
+                  value: '${course.totalClasses - course.attendedClasses}',
+                  icon: Icons.cancel_outlined,
+                  color: colorScheme.error,
+                  theme: theme,
+                ),
+                const SizedBox(width: 8),
+                _StatCard(
+                  label: 'Total',
+                  value: '${course.totalClasses}',
+                  icon: Icons.calendar_today_outlined,
+                  color: colorScheme.primary,
+                  theme: theme,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (classesCanMiss != null)
+              Card.filled(
+                color: classesCanMiss > 0
+                    ? colorScheme.tertiaryContainer
+                    : colorScheme.errorContainer,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Icon(
+                        classesCanMiss > 0
+                            ? Icons.info_outline
+                            : Icons.warning_amber_rounded,
+                        color: classesCanMiss > 0
+                            ? colorScheme.onTertiaryContainer
+                            : colorScheme.onErrorContainer,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          classesCanMiss > 0
+                              ? 'You can miss up to $classesCanMiss more class${classesCanMiss > 1 ? 'es' : ''} and stay above 75%'
+                              : 'You need to attend the next ${-classesCanMiss} class${classesCanMiss < -1 ? 'es' : ''} to reach 75%',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: classesCanMiss > 0
+                                ? colorScheme.onTertiaryContainer
+                                : colorScheme.onErrorContainer,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ] else
+            Card.filled(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Center(
+                  child: Text(
+                    'No attendance data yet',
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           const SizedBox(height: 16),
           _DetailRow(label: 'Course Code', value: course.code, theme: theme),
           _DetailRow(label: 'Instructor', value: course.instructor, theme: theme),
-          _DetailRow(label: 'Credits', value: '${course.credits}', theme: theme),
-          _DetailRow(label: 'Room', value: course.room, theme: theme),
+          if (course.credits != null)
+            _DetailRow(label: 'Credits', value: '${course.credits}', theme: theme),
+          if (course.room != null && course.room!.isNotEmpty)
+            _DetailRow(label: 'Room', value: course.room!, theme: theme),
           _DetailRow(
             label: 'Type',
             value: course.type.name[0].toUpperCase() + course.type.name.substring(1),
@@ -138,8 +155,7 @@ class CourseDetailScreen extends StatelessWidget {
   }
 
   int? _classesCanMiss() {
-    // How many more classes can be missed while maintaining 75%
-    // attended / (total + x) >= 0.75  =>  x <= (attended / 0.75) - total
+    if (course.totalClasses == 0) return null;
     final canMiss =
         (course.attendedClasses / 0.75 - course.totalClasses).floor();
     return canMiss;

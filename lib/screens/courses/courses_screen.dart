@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../data/mock_data.dart';
+import '../../data/app_state.dart';
 import '../../data/models/course.dart';
 import '../../widgets/course_card.dart';
 import 'course_detail_screen.dart';
@@ -15,8 +15,8 @@ class _CoursesScreenState extends State<CoursesScreen> {
   String _searchQuery = '';
   CourseType? _filterType;
 
-  List<Course> get _filteredCourses {
-    return MockData.courses.where((course) {
+  List<Course> _filteredCourses(List<Course> allCourses) {
+    return allCourses.where((course) {
       final matchesSearch = _searchQuery.isEmpty ||
           course.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           course.code.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -29,6 +29,8 @@ class _CoursesScreenState extends State<CoursesScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final appState = AppStateScope.of(context);
+    final filtered = _filteredCourses(appState.courses);
 
     return Scaffold(
       body: CustomScrollView(
@@ -84,7 +86,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${_filteredCourses.length} courses  •  ${_totalCredits()} credits',
+                  '${filtered.length} courses  •  ${_totalCredits(filtered)} credits',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
@@ -98,7 +100,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
-                  final course = _filteredCourses[index];
+                  final course = filtered[index];
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 4),
                     child: CourseCard(
@@ -113,7 +115,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
                     ),
                   );
                 },
-                childCount: _filteredCourses.length,
+                childCount: filtered.length,
               ),
             ),
           ),
@@ -123,8 +125,13 @@ class _CoursesScreenState extends State<CoursesScreen> {
     );
   }
 
-  int _totalCredits() =>
-      _filteredCourses.fold<int>(0, (sum, c) => sum + c.credits);
+  String _totalCredits(List<Course> courses) {
+    final known = courses.where((c) => c.credits != null).toList();
+    if (known.isEmpty) return '–';
+    final total = known.fold<int>(0, (sum, c) => sum + c.credits!);
+    final suffix = known.length < courses.length ? '+' : '';
+    return '$total$suffix';
+  }
 }
 
 class _FilterChip extends StatelessWidget {

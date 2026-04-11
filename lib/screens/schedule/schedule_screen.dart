@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../data/mock_data.dart';
+import '../../data/app_state.dart';
 import '../../data/models/schedule_entry.dart';
 import '../../widgets/schedule_tile.dart';
 import '../courses/course_detail_screen.dart';
@@ -29,7 +29,7 @@ class _ScheduleScreenState extends State<ScheduleScreen>
   @override
   void initState() {
     super.initState();
-    final today = DateTime.now().weekday; // 1=Mon ... 7=Sun
+    final today = DateTime.now().weekday;
     _tabController = TabController(
       length: 7,
       vsync: this,
@@ -47,6 +47,43 @@ class _ScheduleScreenState extends State<ScheduleScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final appState = AppStateScope.of(context);
+    final allSchedule = appState.schedule;
+
+    if (allSchedule.isEmpty) {
+      return Scaffold(
+        body: CustomScrollView(
+          slivers: [
+            SliverAppBar.large(title: const Text('Schedule')),
+            SliverFillRemaining(
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.event_busy_outlined,
+                        size: 64, color: colorScheme.onSurfaceVariant),
+                    const SizedBox(height: 12),
+                    Text(
+                      'No schedule available',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Schedule data is not published yet',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Scaffold(
       body: NestedScrollView(
@@ -72,7 +109,7 @@ class _ScheduleScreenState extends State<ScheduleScreen>
         body: TabBarView(
           controller: _tabController,
           children: List.generate(7, (dayIndex) {
-            final dayClasses = MockData.schedule
+            final dayClasses = allSchedule
                 .where((e) => e.dayOfWeek == dayIndex + 1)
                 .toList();
 
@@ -147,6 +184,8 @@ class _DayScheduleState extends State<_DaySchedule>
 
   @override
   Widget build(BuildContext context) {
+    final appState = AppStateScope.of(context);
+
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
       itemCount: widget.classes.length + 1,
@@ -190,7 +229,7 @@ class _DayScheduleState extends State<_DaySchedule>
             child: ScheduleTile(
               entry: widget.classes[i],
               onTap: () {
-                final course = MockData.courses.where(
+                final course = appState.courses.where(
                   (c) => c.code == widget.classes[i].courseCode,
                 ).firstOrNull;
                 if (course != null) {

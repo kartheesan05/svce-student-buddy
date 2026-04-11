@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../config/theme_provider.dart';
-import '../../data/mock_data.dart';
+import '../../data/app_state.dart';
 import '../../widgets/animated_progress_ring.dart';
 import '../../widgets/staggered_column.dart';
 import '../results/results_screen.dart';
@@ -12,7 +12,28 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final student = MockData.student;
+    final appState = AppStateScope.of(context);
+    final student = appState.student;
+
+    if (student == null) {
+      return Scaffold(
+        body: CustomScrollView(
+          slivers: [
+            SliverAppBar.large(title: const Text('Profile')),
+            const SliverFillRemaining(
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final initials = student.name
+        .split(' ')
+        .where((w) => w.isNotEmpty)
+        .map((w) => w[0])
+        .take(2)
+        .join();
 
     return Scaffold(
       body: CustomScrollView(
@@ -31,13 +52,18 @@ class ProfileScreen extends StatelessWidget {
                     CircleAvatar(
                       radius: 48,
                       backgroundColor: colorScheme.primaryContainer,
-                      child: Text(
-                        student.name.split(' ').map((w) => w[0]).take(2).join(),
-                        style: theme.textTheme.headlineMedium?.copyWith(
-                          color: colorScheme.onPrimaryContainer,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      backgroundImage: student.photoBytes != null
+                          ? MemoryImage(student.photoBytes!)
+                          : null,
+                      child: student.photoBytes == null
+                          ? Text(
+                              initials,
+                              style: theme.textTheme.headlineMedium?.copyWith(
+                                color: colorScheme.onPrimaryContainer,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            )
+                          : null,
                     ),
                     const SizedBox(height: 12),
                     Text(
@@ -71,43 +97,48 @@ class ProfileScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        AnimatedProgressRing(
-                          progress: student.cgpa / 10,
-                          size: 100,
-                          strokeWidth: 10,
-                          progressColor: colorScheme.primary,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                student.cgpa.toStringAsFixed(2),
-                                style: theme.textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
+                        if (student.cgpa != null)
+                          AnimatedProgressRing(
+                            progress: student.cgpa! / 10,
+                            size: 100,
+                            strokeWidth: 10,
+                            progressColor: colorScheme.primary,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  student.cgpa!.toStringAsFixed(2),
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
+                                Text('CGPA',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                    )),
+                              ],
+                            ),
+                          ),
+                        if (student.cgpa != null) const SizedBox(width: 32),
+                        Flexible(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (student.totalCreditsEarned != null)
+                                _MiniStat(
+                                  label: 'Credits Earned',
+                                  value: '${student.totalCreditsEarned}',
+                                  theme: theme,
+                                ),
+                              if (student.totalCreditsEarned != null)
+                                const SizedBox(height: 8),
+                              _MiniStat(
+                                label: 'Department',
+                                value: student.department,
+                                theme: theme,
                               ),
-                              Text('CGPA',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: colorScheme.onSurfaceVariant,
-                                  )),
                             ],
                           ),
-                        ),
-                        const SizedBox(width: 32),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _MiniStat(
-                              label: 'Credits Earned',
-                              value: '${student.totalCreditsEarned}',
-                              theme: theme,
-                            ),
-                            const SizedBox(height: 8),
-                            _MiniStat(
-                              label: 'Enrolled Since',
-                              value: student.enrollmentYear,
-                              theme: theme,
-                            ),
-                          ],
                         ),
                       ],
                     ),
@@ -139,47 +170,141 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: _SectionTitle(title: 'Personal Info', theme: theme),
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: Card.filled(
-                        clipBehavior: Clip.antiAlias,
-                        child: Column(
-                          children: [
-                            _ProfileTile(
-                              icon: Icons.email_outlined,
-                              title: 'Email',
-                              subtitle: student.email,
-                            ),
-                            const Divider(height: 1, indent: 56),
-                            _ProfileTile(
-                              icon: Icons.phone_outlined,
-                              title: 'Phone',
-                              subtitle: student.phone,
-                            ),
-                            const Divider(height: 1, indent: 56),
-                            _ProfileTile(
-                              icon: Icons.business_outlined,
-                              title: 'Department',
-                              subtitle: student.department,
-                            ),
-                          ],
+                    if (_hasPersonalInfo(student)) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child:
+                            _SectionTitle(title: 'Personal Info', theme: theme),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: Card.filled(
+                          clipBehavior: Clip.antiAlias,
+                          child: Column(
+                            children: _buildPersonalInfoTiles(student),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
+                      const SizedBox(height: 16),
+                    ],
+                    if (student.email != null || student.phone != null) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child:
+                            _SectionTitle(title: 'Contact Info', theme: theme),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: Card.filled(
+                          clipBehavior: Clip.antiAlias,
+                          child: Column(
+                            children: [
+                              if (student.email != null)
+                                _ProfileTile(
+                                  icon: Icons.email_outlined,
+                                  title: 'Email',
+                                  subtitle: student.email!,
+                                ),
+                              if (student.email != null &&
+                                  student.phone != null)
+                                const Divider(height: 1, indent: 56),
+                              if (student.phone != null)
+                                _ProfileTile(
+                                  icon: Icons.phone_outlined,
+                                  title: 'Phone',
+                                  subtitle: student.phone!,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    if (_hasAddressInfo(student)) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: _SectionTitle(title: 'Address', theme: theme),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: Card.filled(
+                          clipBehavior: Clip.antiAlias,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(Icons.location_on_outlined,
+                                    color: colorScheme.onSurfaceVariant),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Text(
+                                    _buildAddressString(student),
+                                    style: theme.textTheme.bodyMedium,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    if (student.transportRoute != null ||
+                        student.boardingPoint != null) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: _SectionTitle(title: 'Transport', theme: theme),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: Card.filled(
+                          clipBehavior: Clip.antiAlias,
+                          child: Column(
+                            children: [
+                              if (student.transportRoute != null)
+                                _ProfileTile(
+                                  icon: Icons.directions_bus_outlined,
+                                  title: 'Route',
+                                  subtitle: student.transportRoute!,
+                                ),
+                              if (student.transportRoute != null &&
+                                  student.boardingPoint != null)
+                                const Divider(height: 1, indent: 56),
+                              if (student.boardingPoint != null)
+                                _ProfileTile(
+                                  icon: Icons.place_outlined,
+                                  title: 'Boarding Point',
+                                  subtitle: student.boardingPoint!,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     SizedBox(
                       width: double.infinity,
-                      child: _SectionTitle(title: 'Preferences', theme: theme),
+                      child:
+                          _SectionTitle(title: 'Preferences', theme: theme),
                     ),
                     const SizedBox(height: 8),
                     const SizedBox(
                       width: double.infinity,
                       child: _PreferencesCard(),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => appState.logout(),
+                        icon: const Icon(Icons.logout),
+                        label: const Text('Sign Out'),
+                      ),
                     ),
                     const SizedBox(height: 32),
                   ],
@@ -190,6 +315,109 @@ class ProfileScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static bool _hasPersonalInfo(dynamic student) {
+    return student.enrollmentNo != null ||
+        student.degree != null ||
+        student.fatherName != null ||
+        student.motherName != null ||
+        student.gender != null ||
+        student.dob != null ||
+        student.bloodGroup != null ||
+        student.category != null;
+  }
+
+  static List<Widget> _buildPersonalInfoTiles(dynamic student) {
+    final tiles = <({IconData icon, String title, String subtitle})>[];
+
+    if (student.enrollmentNo != null) {
+      tiles.add((
+        icon: Icons.badge_outlined,
+        title: 'Enrollment No',
+        subtitle: student.enrollmentNo!,
+      ));
+    }
+    if (student.degree != null) {
+      tiles.add((
+        icon: Icons.school_outlined,
+        title: 'Degree',
+        subtitle: student.degree!,
+      ));
+    }
+    if (student.fatherName != null && student.fatherName!.isNotEmpty) {
+      tiles.add((
+        icon: Icons.person_outlined,
+        title: "Father's Name",
+        subtitle: student.fatherName!,
+      ));
+    }
+    if (student.motherName != null && student.motherName!.isNotEmpty) {
+      tiles.add((
+        icon: Icons.person_outlined,
+        title: "Mother's Name",
+        subtitle: student.motherName!,
+      ));
+    }
+    if (student.gender != null) {
+      tiles.add((
+        icon: Icons.wc_outlined,
+        title: 'Gender',
+        subtitle: student.gender!,
+      ));
+    }
+    if (student.dob != null) {
+      tiles.add((
+        icon: Icons.cake_outlined,
+        title: 'Date of Birth',
+        subtitle: student.dob!,
+      ));
+    }
+    if (student.bloodGroup != null) {
+      tiles.add((
+        icon: Icons.water_drop_outlined,
+        title: 'Blood Group',
+        subtitle: student.bloodGroup!,
+      ));
+    }
+    if (student.category != null) {
+      tiles.add((
+        icon: Icons.category_outlined,
+        title: 'Category',
+        subtitle: student.category!,
+      ));
+    }
+
+    final widgets = <Widget>[];
+    for (var i = 0; i < tiles.length; i++) {
+      if (i > 0) widgets.add(const Divider(height: 1, indent: 56));
+      widgets.add(_ProfileTile(
+        icon: tiles[i].icon,
+        title: tiles[i].title,
+        subtitle: tiles[i].subtitle,
+      ));
+    }
+    return widgets;
+  }
+
+  static bool _hasAddressInfo(dynamic student) {
+    return student.address != null ||
+        student.city != null ||
+        student.state != null ||
+        student.postalCode != null;
+  }
+
+  static String _buildAddressString(dynamic student) {
+    final parts = <String>[];
+    if (student.address != null) parts.add(student.address!);
+    if (student.city != null) parts.add(student.city!);
+    if (student.state != null && student.postalCode != null) {
+      parts.add('${student.state!} - ${student.postalCode!}');
+    } else {
+      if (student.state != null) parts.add(student.state!);
+      if (student.postalCode != null) parts.add(student.postalCode!);
+    }
+    return parts.join('\n');
   }
 }
 
@@ -228,12 +456,14 @@ class _MiniStat extends StatelessWidget {
       children: [
         Text(
           value,
+          overflow: TextOverflow.ellipsis,
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
           ),
         ),
         Text(
           label,
+          overflow: TextOverflow.ellipsis,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),

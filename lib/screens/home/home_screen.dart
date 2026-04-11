@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../data/mock_data.dart';
+import '../../data/app_state.dart';
+import '../../data/models/course.dart';
 import '../../data/models/schedule_entry.dart';
 import '../../widgets/animated_progress_ring.dart';
 import '../../widgets/schedule_tile.dart';
@@ -24,10 +27,12 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final student = MockData.student;
-    final todayClasses = _getTodayClasses();
+    final appState = AppStateScope.of(context);
+    final student = appState.student;
+    final courses = appState.courses;
+    final todayClasses = _getTodayClasses(appState);
 
-    final overallAttendance = _calculateOverallAttendance();
+    final overallAttendance = _calculateOverallAttendance(courses);
 
     return Scaffold(
       body: CustomScrollView(
@@ -42,7 +47,8 @@ class HomeScreen extends StatelessWidget {
                 StaggeredColumn(
                   children: [
                     _GreetingCard(
-                      name: student.name.split(' ').first,
+                      name: student?.name.split(' ').first ?? '',
+                      photoBytes: student?.photoBytes,
                       colorScheme: colorScheme,
                       theme: theme,
                     ),
@@ -78,7 +84,7 @@ class HomeScreen extends StatelessWidget {
                             child: ScheduleTile(
                               entry: entry,
                               onTap: () {
-                                final course = MockData.courses.where(
+                                final course = courses.where(
                                   (c) => c.code == entry.courseCode,
                                 ).firstOrNull;
                                 if (course != null) {
@@ -113,6 +119,7 @@ class HomeScreen extends StatelessWidget {
                     const SizedBox(height: 8),
                     _AttendanceOverviewCard(
                       overallAttendance: overallAttendance,
+                      courses: courses,
                       colorScheme: colorScheme,
                       theme: theme,
                       onTap: onViewCourses,
@@ -125,7 +132,7 @@ class HomeScreen extends StatelessWidget {
                     const SizedBox(height: 8),
                     _QuickStatsRow(
                       student: student,
-                      courseCount: MockData.courses.length,
+                      courseCount: courses.length,
                       colorScheme: colorScheme,
                       theme: theme,
                       onCgpaTap: () => Navigator.push(
@@ -148,29 +155,31 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  List<ScheduleEntry> _getTodayClasses() {
+  List<ScheduleEntry> _getTodayClasses(AppState appState) {
     final weekday = DateTime.now().weekday;
-    return MockData.schedule.where((e) => e.dayOfWeek == weekday).toList();
+    return appState.schedule.where((e) => e.dayOfWeek == weekday).toList();
   }
 
-  double _calculateOverallAttendance() {
-    final courses = MockData.courses;
-    if (courses.isEmpty) return 0;
+  double _calculateOverallAttendance(List<Course> courses) {
+    final withClasses = courses.where((c) => c.totalClasses > 0).toList();
+    if (withClasses.isEmpty) return 0;
     final totalAttended =
-        courses.fold<int>(0, (sum, c) => sum + c.attendedClasses);
+        withClasses.fold<int>(0, (sum, c) => sum + c.attendedClasses);
     final totalClasses =
-        courses.fold<int>(0, (sum, c) => sum + c.totalClasses);
+        withClasses.fold<int>(0, (sum, c) => sum + c.totalClasses);
     return totalClasses == 0 ? 0 : totalAttended / totalClasses;
   }
 }
 
 class _GreetingCard extends StatelessWidget {
   final String name;
+  final Uint8List? photoBytes;
   final ColorScheme colorScheme;
   final ThemeData theme;
 
   const _GreetingCard({
     required this.name,
+    this.photoBytes,
     required this.colorScheme,
     required this.theme,
   });
@@ -221,13 +230,18 @@ class _GreetingCard extends StatelessWidget {
             CircleAvatar(
               radius: 28,
               backgroundColor: colorScheme.primary,
-              child: Text(
-                name[0],
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  color: colorScheme.onPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              backgroundImage: photoBytes != null
+                  ? MemoryImage(photoBytes!)
+                  : null,
+              child: photoBytes == null
+                  ? Text(
+                      name.isNotEmpty ? name[0] : '?',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        color: colorScheme.onPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    )
+                  : null,
             ),
           ],
         ),
@@ -269,12 +283,14 @@ class _SectionHeader extends StatelessWidget {
 
 class _AttendanceOverviewCard extends StatelessWidget {
   final double overallAttendance;
+  final List<Course> courses;
   final ColorScheme colorScheme;
   final ThemeData theme;
   final VoidCallback? onTap;
 
   const _AttendanceOverviewCard({
     required this.overallAttendance,
+    required this.courses,
     required this.colorScheme,
     required this.theme,
     this.onTap,
@@ -282,8 +298,7 @@ class _AttendanceOverviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lowCourses =
-        MockData.courses.where((c) => c.isAttendanceLow).toList();
+    final lowCourses = courses.where((c) => c.totalClasses > 0 && c.isAttendanceLow).toList();
     return Card.filled(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -319,7 +334,7 @@ class _AttendanceOverviewCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${MockData.courses.length} courses this semester',
+                    '${courses.length} courses this semester',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -379,7 +394,7 @@ class _QuickStatsRow extends StatelessWidget {
         _StatChip(
           icon: Icons.school_outlined,
           label: 'CGPA',
-          value: student.cgpa.toStringAsFixed(2),
+          value: student?.cgpa?.toStringAsFixed(2) ?? '–',
           colorScheme: colorScheme,
           theme: theme,
           onTap: onCgpaTap,
@@ -397,7 +412,7 @@ class _QuickStatsRow extends StatelessWidget {
         _StatChip(
           icon: Icons.timeline_outlined,
           label: 'Semester',
-          value: '${student.currentSemester}',
+          value: '${student?.currentSemester ?? '–'}',
           colorScheme: colorScheme,
           theme: theme,
           onTap: onSemesterTap,

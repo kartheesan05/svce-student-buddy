@@ -63,7 +63,7 @@ class CourseCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${course.code}  •  ${course.credits} credits  •  ${course.instructor}',
+                      '${course.code}${course.credits != null ? '  •  ${course.credits} cr' : ''}  •  ${course.instructor}',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: colorScheme.onSurfaceVariant,
                       ),
