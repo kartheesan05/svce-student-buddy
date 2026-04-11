@@ -9,6 +9,11 @@ class PrefsService {
   static const _keyRememberMe = 'remember_me';
   static const _keyThemeMode = 'theme_mode';
   static const _keyThemeSource = 'theme_source';
+  static const _keyPersistedSessionJson = 'persisted_session_json';
+  static const _keySessionStartedMs = 'session_started_ms';
+
+  /// Server token lifetime — session is invalid after this from login time.
+  static const Duration sessionMaxAge = Duration(minutes: 10);
 
   late final SharedPreferences _prefs;
 
@@ -73,5 +78,39 @@ class PrefsService {
 
   Future<void> setThemeSource(ThemeSource source) async {
     await _prefs.setString(_keyThemeSource, source.name);
+  }
+
+  // --- Persisted auth session (survives app restart until [sessionMaxAge]) ---
+
+  Future<void> savePersistedSession(Map<String, dynamic> loginData) async {
+    await _prefs.setString(_keyPersistedSessionJson, jsonEncode(loginData));
+    await _prefs.setInt(
+        _keySessionStartedMs, DateTime.now().millisecondsSinceEpoch);
+  }
+
+  Future<void> clearPersistedSession() async {
+    await _prefs.remove(_keyPersistedSessionJson);
+    await _prefs.remove(_keySessionStartedMs);
+  }
+
+  /// Returns login JSON if a session was saved and is still within [sessionMaxAge].
+  /// Clears stored session if expired or invalid.
+  Future<Map<String, dynamic>?> loadPersistedSessionIfValid() async {
+    final jsonStr = _prefs.getString(_keyPersistedSessionJson);
+    final ms = _prefs.getInt(_keySessionStartedMs);
+    if (jsonStr == null || ms == null) return null;
+
+    final started = DateTime.fromMillisecondsSinceEpoch(ms);
+    if (DateTime.now().difference(started) > sessionMaxAge) {
+      await clearPersistedSession();
+      return null;
+    }
+
+    try {
+      final decoded = jsonDecode(jsonStr);
+      if (decoded is Map<String, dynamic>) return decoded;
+    } catch (_) {}
+    await clearPersistedSession();
+    return null;
   }
 }

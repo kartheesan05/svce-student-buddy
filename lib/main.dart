@@ -12,6 +12,7 @@ void main() async {
 
   final themeProvider = ThemeProvider(prefs: prefs);
   final appState = AppState()..prefs = prefs;
+  await appState.restoreSessionIfValid();
 
   runApp(
     ThemeProviderScope(

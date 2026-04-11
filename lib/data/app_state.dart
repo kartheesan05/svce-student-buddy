@@ -34,6 +34,7 @@ class AppState extends ChangeNotifier {
       _loginData = await api.login(username, password);
       isLoggedIn = true;
       _parseLoginData();
+      await prefs.savePersistedSession(_loginData!);
       notifyListeners();
 
       _loadAllData();
@@ -347,7 +348,22 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  void logout() {
+  Future<void> restoreSessionIfValid() async {
+    final data = await prefs.loadPersistedSessionIfValid();
+    if (data == null) return;
+
+    _loginData = data;
+    api.applyLoginResponse(data);
+    _parseLoginData();
+    isLoggedIn = true;
+    isLoading = true;
+    error = null;
+    notifyListeners();
+
+    await _loadAllData();
+  }
+
+  Future<void> logout() async {
     isLoggedIn = false;
     student = null;
     courses = [];
@@ -363,6 +379,7 @@ class AppState extends ChangeNotifier {
     api.regNo = null;
     api.sessionNo = null;
     api.semesterNo = null;
+    await prefs.clearPersistedSession();
     notifyListeners();
   }
 

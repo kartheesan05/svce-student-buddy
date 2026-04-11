@@ -55,7 +55,14 @@ class ApiService {
       throw ApiException(data['Message'] as String? ?? 'Login failed');
     }
 
-    final userInfo = data['UserInfo'] as Map<String, dynamic>;
+    applyLoginResponse(data);
+    return data;
+  }
+
+  /// Restores auth headers from a stored login response (cold start) or fresh login.
+  void applyLoginResponse(Map<String, dynamic> data) {
+    final userInfo = data['UserInfo'] as Map<String, dynamic>?;
+    if (userInfo == null) return;
     uaNo = userInfo['UaNo'] as String?;
     uaType = userInfo['UaType']?.toString();
     token = userInfo['Token'] as String?;
@@ -63,8 +70,6 @@ class ApiService {
     regNo = userInfo['RegNo'] as String?;
     sessionNo = _parseInt(userInfo['SessionNo']);
     semesterNo = int.tryParse(userInfo['SemesterNo']?.toString() ?? '');
-
-    return data;
   }
 
   Future<Map<String, dynamic>> getProfile() async {
