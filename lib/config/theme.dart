@@ -25,8 +25,8 @@ class AppTheme {
       colorScheme: colorScheme,
       scaffoldBackgroundColor: colorScheme.surface,
       navigationBarTheme: NavigationBarThemeData(
-        height: 72,
-        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+        height: 64,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
         backgroundColor: colorScheme.surfaceContainer,
         indicatorColor: colorScheme.secondaryContainer,
       ),

@@ -10,16 +10,17 @@ import '../../widgets/schedule_tile.dart';
 import '../../widgets/staggered_column.dart';
 import '../courses/course_detail_screen.dart';
 import '../results/results_screen.dart';
+import '../schedule/schedule_screen.dart';
 
 class HomeScreen extends StatelessWidget {
-  final VoidCallback onViewSchedule;
   final VoidCallback onViewCourses;
+  final VoidCallback onViewInternalMarks;
   final VoidCallback onViewProfile;
 
   const HomeScreen({
     super.key,
-    required this.onViewSchedule,
     required this.onViewCourses,
+    required this.onViewInternalMarks,
     required this.onViewProfile,
   });
 
@@ -56,7 +57,10 @@ class HomeScreen extends StatelessWidget {
                     _SectionHeader(
                       title: "Today's Classes",
                       actionLabel: 'Full Schedule',
-                      onAction: onViewSchedule,
+                      onAction: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ScheduleScreen()),
+                      ),
                       theme: theme,
                     ),
                     const SizedBox(height: 8),
@@ -103,7 +107,10 @@ class HomeScreen extends StatelessWidget {
                         padding: const EdgeInsets.only(top: 4),
                         child: Center(
                           child: TextButton.icon(
-                            onPressed: onViewSchedule,
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const ScheduleScreen()),
+                            ),
                             icon: const Icon(Icons.expand_more, size: 18),
                             label: Text('+${todayClasses.length - 3} more classes'),
                           ),

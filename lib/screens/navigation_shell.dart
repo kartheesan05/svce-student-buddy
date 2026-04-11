@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'home/home_screen.dart';
 import 'courses/courses_screen.dart';
-import 'schedule/schedule_screen.dart';
+import 'internal_marks/internal_marks_screen.dart';
 import 'profile/profile_screen.dart';
 
 class NavigationShell extends StatefulWidget {
@@ -48,9 +48,9 @@ class _NavigationShellState extends State<NavigationShell> {
             label: 'Courses',
           ),
           NavigationDestination(
-            icon: Icon(Icons.calendar_today_outlined),
-            selectedIcon: Icon(Icons.calendar_today),
-            label: 'Schedule',
+            icon: Icon(Icons.assignment_outlined),
+            selectedIcon: Icon(Icons.assignment),
+            label: 'Internals',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outlined),
@@ -66,14 +66,14 @@ class _NavigationShellState extends State<NavigationShell> {
     switch (_currentIndex) {
       case 0:
         return HomeScreen(
-          onViewSchedule: () => _onTabSelected(2),
           onViewCourses: () => _onTabSelected(1),
+          onViewInternalMarks: () => _onTabSelected(2),
           onViewProfile: () => _onTabSelected(3),
         );
       case 1:
         return const CoursesScreen();
       case 2:
-        return const ScheduleScreen();
+        return const InternalMarksScreen();
       case 3:
         return const ProfileScreen();
       default:

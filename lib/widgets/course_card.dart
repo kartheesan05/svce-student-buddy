@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../data/models/course.dart';
+import 'animated_progress_ring.dart';
 
 class CourseCard extends StatelessWidget {
   final Course course;
@@ -74,30 +75,18 @@ class CourseCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '${attendance.toStringAsFixed(0)}%',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      color: indicatorColor,
-                      fontWeight: FontWeight.bold,
-                    ),
+              AnimatedProgressRing(
+                progress: attendance / 100,
+                size: 44,
+                strokeWidth: 4,
+                progressColor: indicatorColor,
+                child: Text(
+                  '${attendance.toStringAsFixed(0)}%',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: indicatorColor,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 4),
-                  SizedBox(
-                    width: 48,
-                    height: 4,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(2),
-                      child: LinearProgressIndicator(
-                        value: attendance / 100,
-                        backgroundColor: colorScheme.surfaceContainerHighest,
-                        color: indicatorColor,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
           ),

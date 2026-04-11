@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'api_service.dart';
 import 'models/course.dart';
+import 'models/internal_mark.dart';
 import 'models/schedule_entry.dart';
 import 'models/semester_result.dart';
 import 'models/student.dart';
@@ -12,6 +13,8 @@ class AppState extends ChangeNotifier {
   List<Course> courses = [];
   List<ScheduleEntry> schedule = [];
   List<SemesterResult> semesterResults = [];
+  List<InternalMark> internalMarks = [];
+  bool isInternalMarksLoading = false;
 
   bool isLoggedIn = false;
   bool isLoading = false;
@@ -79,6 +82,7 @@ class AppState extends ChangeNotifier {
         _loadAttendance(),
         _loadSchedule(),
         _loadExternalResults(),
+        _loadInternalMarks(),
       ]);
     } catch (_) {}
 
@@ -309,6 +313,7 @@ class AppState extends ChangeNotifier {
     semesterResults = results;
 
     if (student != null && latestCgpa != null) {
+
       student = student!.copyWith(
         cgpa: latestCgpa,
         totalCreditsEarned: cumulativeCredits,
@@ -318,12 +323,35 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _loadInternalMarks() async {
+    try {
+      isInternalMarksLoading = true;
+      notifyListeners();
+
+      final session = api.sessionNo;
+      final semester = api.semesterNo;
+      if (session == null || semester == null) return;
+
+      final data = await api.getInternalMarks(session, semester);
+      final marks = data['InternalMarks'] as List<dynamic>? ?? [];
+      internalMarks = marks
+          .map((m) => InternalMark.fromJson(m as Map<String, dynamic>))
+          .toList();
+    } catch (e, st) {
+      debugPrint('Internal marks load error: $e\n$st');
+    } finally {
+      isInternalMarksLoading = false;
+      notifyListeners();
+    }
+  }
+
   void logout() {
     isLoggedIn = false;
     student = null;
     courses = [];
     schedule = [];
     semesterResults = [];
+    internalMarks = [];
     _loginData = null;
     _externalSessions = [];
     api.uaNo = null;
