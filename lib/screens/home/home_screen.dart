@@ -5,15 +5,18 @@ import '../../data/models/schedule_entry.dart';
 import '../../widgets/animated_progress_ring.dart';
 import '../../widgets/schedule_tile.dart';
 import '../../widgets/staggered_column.dart';
+import '../results/results_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   final VoidCallback onViewSchedule;
   final VoidCallback onViewCourses;
+  final VoidCallback onViewProfile;
 
   const HomeScreen({
     super.key,
     required this.onViewSchedule,
     required this.onViewCourses,
+    required this.onViewProfile,
   });
 
   @override
@@ -30,13 +33,6 @@ class HomeScreen extends StatelessWidget {
         slivers: [
           SliverAppBar.large(
             title: const Text('Diary'),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.notifications_outlined),
-                onPressed: () {},
-              ),
-              const SizedBox(width: 4),
-            ],
           ),
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -92,6 +88,7 @@ class HomeScreen extends StatelessWidget {
                       overallAttendance: overallAttendance,
                       colorScheme: colorScheme,
                       theme: theme,
+                      onTap: onViewCourses,
                     ),
                     const SizedBox(height: 20),
                     _SectionHeader(
@@ -104,6 +101,14 @@ class HomeScreen extends StatelessWidget {
                       courseCount: MockData.courses.length,
                       colorScheme: colorScheme,
                       theme: theme,
+                      onCgpaTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ResultsScreen(),
+                        ),
+                      ),
+                      onCoursesTap: onViewCourses,
+                      onSemesterTap: onViewProfile,
                     ),
                     const SizedBox(height: 32),
                   ],
@@ -118,7 +123,6 @@ class HomeScreen extends StatelessWidget {
 
   List<ScheduleEntry> _getTodayClasses() {
     final weekday = DateTime.now().weekday;
-    if (weekday > 5) return [];
     return MockData.schedule.where((e) => e.dayOfWeek == weekday).toList();
   }
 
@@ -240,11 +244,13 @@ class _AttendanceOverviewCard extends StatelessWidget {
   final double overallAttendance;
   final ColorScheme colorScheme;
   final ThemeData theme;
+  final VoidCallback? onTap;
 
   const _AttendanceOverviewCard({
     required this.overallAttendance,
     required this.colorScheme,
     required this.theme,
+    this.onTap,
   });
 
   @override
@@ -252,14 +258,17 @@ class _AttendanceOverviewCard extends StatelessWidget {
     final lowCourses =
         MockData.courses.where((c) => c.isAttendanceLow).toList();
     return Card.filled(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            AnimatedProgressRing(
-              progress: overallAttendance,
-              size: 88,
-              strokeWidth: 10,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              AnimatedProgressRing(
+                progress: overallAttendance,
+                size: 88,
+                strokeWidth: 10,
               progressColor: overallAttendance >= 0.75
                   ? Colors.green
                   : colorScheme.error,
@@ -312,6 +321,7 @@ class _AttendanceOverviewCard extends StatelessWidget {
           ],
         ),
       ),
+      ),
     );
   }
 }
@@ -321,12 +331,18 @@ class _QuickStatsRow extends StatelessWidget {
   final int courseCount;
   final ColorScheme colorScheme;
   final ThemeData theme;
+  final VoidCallback? onCgpaTap;
+  final VoidCallback? onCoursesTap;
+  final VoidCallback? onSemesterTap;
 
   const _QuickStatsRow({
     required this.student,
     required this.courseCount,
     required this.colorScheme,
     required this.theme,
+    this.onCgpaTap,
+    this.onCoursesTap,
+    this.onSemesterTap,
   });
 
   @override
@@ -339,6 +355,7 @@ class _QuickStatsRow extends StatelessWidget {
           value: student.cgpa.toStringAsFixed(2),
           colorScheme: colorScheme,
           theme: theme,
+          onTap: onCgpaTap,
         ),
         const SizedBox(width: 8),
         _StatChip(
@@ -347,6 +364,7 @@ class _QuickStatsRow extends StatelessWidget {
           value: '$courseCount',
           colorScheme: colorScheme,
           theme: theme,
+          onTap: onCoursesTap,
         ),
         const SizedBox(width: 8),
         _StatChip(
@@ -355,6 +373,7 @@ class _QuickStatsRow extends StatelessWidget {
           value: '${student.currentSemester}',
           colorScheme: colorScheme,
           theme: theme,
+          onTap: onSemesterTap,
         ),
       ],
     );
@@ -367,6 +386,7 @@ class _StatChip extends StatelessWidget {
   final String value;
   final ColorScheme colorScheme;
   final ThemeData theme;
+  final VoidCallback? onTap;
 
   const _StatChip({
     required this.icon,
@@ -374,31 +394,36 @@ class _StatChip extends StatelessWidget {
     required this.value,
     required this.colorScheme,
     required this.theme,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Card.filled(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-          child: Column(
-            children: [
-              Icon(icon, color: colorScheme.primary, size: 24),
-              const SizedBox(height: 8),
-              Text(
-                value,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+            child: Column(
+              children: [
+                Icon(icon, color: colorScheme.primary, size: 24),
+                const SizedBox(height: 8),
+                Text(
+                  value,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              Text(
-                label,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+                Text(
+                  label,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

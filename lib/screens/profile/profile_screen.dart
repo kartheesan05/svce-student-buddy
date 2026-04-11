@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../config/theme_provider.dart';
 import '../../data/mock_data.dart';
 import '../../widgets/animated_progress_ring.dart';
 import '../../widgets/staggered_column.dart';
@@ -133,13 +134,6 @@ class ProfileScreen extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            const Divider(height: 1, indent: 56),
-                            _ProfileTile(
-                              icon: Icons.emoji_events_outlined,
-                              title: 'Achievements',
-                              subtitle: "Dean's List — Semester 5",
-                              onTap: () {},
-                            ),
                           ],
                         ),
                       ),
@@ -183,28 +177,9 @@ class ProfileScreen extends StatelessWidget {
                       child: _SectionTitle(title: 'Preferences', theme: theme),
                     ),
                     const SizedBox(height: 8),
-                    SizedBox(
+                    const SizedBox(
                       width: double.infinity,
-                      child: Card.filled(
-                        clipBehavior: Clip.antiAlias,
-                        child: Column(
-                          children: [
-                            _ProfileTile(
-                              icon: Icons.dark_mode_outlined,
-                              title: 'Dark Mode',
-                              subtitle: 'System default',
-                              onTap: () {},
-                            ),
-                            const Divider(height: 1, indent: 56),
-                            _ProfileTile(
-                              icon: Icons.notifications_outlined,
-                              title: 'Notifications',
-                              subtitle: 'Enabled',
-                              onTap: () {},
-                            ),
-                          ],
-                        ),
-                      ),
+                      child: _PreferencesCard(),
                     ),
                     const SizedBox(height: 32),
                   ],
@@ -264,6 +239,110 @@ class _MiniStat extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _PreferencesCard extends StatelessWidget {
+  const _PreferencesCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final provider = ThemeProvider.of(context);
+
+    return ListenableBuilder(
+      listenable: provider,
+      builder: (context, _) {
+        final themeMode = provider.themeMode;
+        final themeSource = provider.themeSource;
+
+        String themeModeLabel;
+        switch (themeMode) {
+          case ThemeMode.system:
+            themeModeLabel = 'System';
+          case ThemeMode.light:
+            themeModeLabel = 'Light';
+          case ThemeMode.dark:
+            themeModeLabel = 'Dark';
+        }
+
+        return Card.filled(
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              ListTile(
+                leading: Icon(Icons.brightness_6_outlined,
+                    color: colorScheme.onSurfaceVariant),
+                title: const Text('Appearance'),
+                subtitle: Text(
+                  themeModeLabel,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                trailing: SegmentedButton<ThemeMode>(
+                  showSelectedIcon: false,
+                  style: ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  segments: const [
+                    ButtonSegment(
+                      value: ThemeMode.light,
+                      icon: Icon(Icons.light_mode, size: 18),
+                    ),
+                    ButtonSegment(
+                      value: ThemeMode.system,
+                      icon: Icon(Icons.auto_mode, size: 18),
+                    ),
+                    ButtonSegment(
+                      value: ThemeMode.dark,
+                      icon: Icon(Icons.dark_mode, size: 18),
+                    ),
+                  ],
+                  selected: {themeMode},
+                  onSelectionChanged: (v) => provider.setThemeMode(v.first),
+                ),
+              ),
+              const Divider(height: 1, indent: 56),
+              ListTile(
+                leading: Icon(Icons.palette_outlined,
+                    color: colorScheme.onSurfaceVariant),
+                title: const Text('Color Theme'),
+                subtitle: Text(
+                  themeSource == ThemeSource.dynamic
+                      ? 'System wallpaper'
+                      : 'Default blue',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                trailing: SegmentedButton<ThemeSource>(
+                  showSelectedIcon: false,
+                  style: ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  segments: const [
+                    ButtonSegment(
+                      value: ThemeSource.dynamic,
+                      label: Text('Dynamic'),
+                    ),
+                    ButtonSegment(
+                      value: ThemeSource.defaultSeed,
+                      label: Text('Default'),
+                    ),
+                  ],
+                  selected: {themeSource},
+                  onSelectionChanged: (v) => provider.setThemeSource(v.first),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

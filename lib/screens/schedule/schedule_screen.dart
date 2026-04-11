@@ -14,24 +14,25 @@ class _ScheduleScreenState extends State<ScheduleScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  static const _days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+  static const _days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   static const _fullDays = [
     'Monday',
     'Tuesday',
     'Wednesday',
     'Thursday',
     'Friday',
+    'Saturday',
+    'Sunday',
   ];
 
   @override
   void initState() {
     super.initState();
-    final today = DateTime.now().weekday;
-    final initialIndex = (today >= 1 && today <= 5) ? today - 1 : 0;
+    final today = DateTime.now().weekday; // 1=Mon ... 7=Sun
     _tabController = TabController(
-      length: 5,
+      length: 7,
       vsync: this,
-      initialIndex: initialIndex,
+      initialIndex: today - 1,
     );
   }
 
@@ -58,6 +59,8 @@ class _ScheduleScreenState extends State<ScheduleScreen>
               TabBar(
                 controller: _tabController,
                 tabs: _days.map((d) => Tab(text: d)).toList(),
+                isScrollable: true,
+                tabAlignment: TabAlignment.center,
                 indicatorSize: TabBarIndicatorSize.label,
                 dividerColor: Colors.transparent,
               ),
@@ -67,7 +70,7 @@ class _ScheduleScreenState extends State<ScheduleScreen>
         ],
         body: TabBarView(
           controller: _tabController,
-          children: List.generate(5, (dayIndex) {
+          children: List.generate(7, (dayIndex) {
             final dayClasses = MockData.schedule
                 .where((e) => e.dayOfWeek == dayIndex + 1)
                 .toList();

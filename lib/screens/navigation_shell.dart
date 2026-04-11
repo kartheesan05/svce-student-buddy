@@ -68,6 +68,7 @@ class _NavigationShellState extends State<NavigationShell> {
         return HomeScreen(
           onViewSchedule: () => _onTabSelected(2),
           onViewCourses: () => _onTabSelected(1),
+          onViewProfile: () => _onTabSelected(3),
         );
       case 1:
         return const CoursesScreen();

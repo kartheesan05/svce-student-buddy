@@ -119,6 +119,20 @@ class MockData {
     ScheduleEntry(courseCode: 'CS303', courseName: 'Database Management Systems', instructor: 'Dr. Priya Gupta', room: 'Room 401', startTime: '09:00', endTime: '10:00', dayOfWeek: 5),
     ScheduleEntry(courseCode: 'HS301', courseName: 'Technical Communication', instructor: 'Dr. Kavita Singh', room: 'Room 102', startTime: '10:00', endTime: '11:00', dayOfWeek: 5),
     ScheduleEntry(courseCode: 'CS305', courseName: 'Systems Lab', instructor: 'Prof. Rajesh Kumar', room: 'Lab 2', startTime: '11:30', endTime: '13:30', dayOfWeek: 5),
+
+    // Saturday
+    ScheduleEntry(courseCode: 'CS301', courseName: 'Data Structures & Algorithms', instructor: 'Dr. Anand Sharma', room: 'Room 301', startTime: '09:00', endTime: '10:00', dayOfWeek: 6),
+    ScheduleEntry(courseCode: 'CS302', courseName: 'Operating Systems', instructor: 'Prof. Rajesh Kumar', room: 'Room 204', startTime: '10:00', endTime: '11:00', dayOfWeek: 6),
+    ScheduleEntry(courseCode: 'CS303', courseName: 'Database Management Systems', instructor: 'Dr. Priya Gupta', room: 'Room 401', startTime: '11:30', endTime: '12:30', dayOfWeek: 6),
+    ScheduleEntry(courseCode: 'CS304', courseName: 'Computer Networks', instructor: 'Prof. Meera Patel', room: 'Room 301', startTime: '14:00', endTime: '15:00', dayOfWeek: 6),
+    ScheduleEntry(courseCode: 'MA301', courseName: 'Probability & Statistics', instructor: 'Dr. Venkat Reddy', room: 'Room 105', startTime: '11:30', endTime: '12:30', dayOfWeek: 6),
+    ScheduleEntry(courseCode: 'CS304', courseName: 'Computer Networks', instructor: 'Prof. Meera Patel', room: 'Room 301', startTime: '14:00', endTime: '15:00', dayOfWeek: 6),
+    ScheduleEntry(courseCode: 'CS305', courseName: 'Systems Lab', instructor: 'Prof. Rajesh Kumar', room: 'Lab 2', startTime: '11:30', endTime: '13:30', dayOfWeek: 6),
+    ScheduleEntry(courseCode: 'CS303', courseName: 'Database Management Systems', instructor: 'Dr. Priya Gupta', room: 'Room 401', startTime: '14:00', endTime: '15:00', dayOfWeek: 6),
+
+    // Sunday
+    ScheduleEntry(courseCode: 'CS305', courseName: 'Systems Lab', instructor: 'Prof. Rajesh Kumar', room: 'Lab 2', startTime: '09:00', endTime: '10:00', dayOfWeek: 7),
+    ScheduleEntry(courseCode: 'HS301', courseName: 'Technical Communication', instructor: 'Dr. Kavita Singh', room: 'Room 102', startTime: '10:00', endTime: '11:00', dayOfWeek: 7),
   ];
 
   static const semesterResults = [

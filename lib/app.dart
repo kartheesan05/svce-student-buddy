@@ -1,6 +1,7 @@
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'config/theme.dart';
+import 'config/theme_provider.dart';
 import 'screens/navigation_shell.dart';
 
 class DiaryApp extends StatelessWidget {
@@ -10,13 +11,21 @@ class DiaryApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return DynamicColorBuilder(
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
-        return MaterialApp(
-          title: 'Diary',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.light(lightDynamic),
-          darkTheme: AppTheme.dark(darkDynamic),
-          themeMode: ThemeMode.system,
-          home: const NavigationShell(),
+        return ListenableBuilder(
+          listenable: ThemeProvider.of(context),
+          builder: (context, _) {
+            final provider = ThemeProvider.of(context);
+            final useDynamic = provider.useDynamicColor;
+
+            return MaterialApp(
+              title: 'Diary',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.light(useDynamic ? lightDynamic : null),
+              darkTheme: AppTheme.dark(useDynamic ? darkDynamic : null),
+              themeMode: provider.themeMode,
+              home: const NavigationShell(),
+            );
+          },
         );
       },
     );
