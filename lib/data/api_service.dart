@@ -47,12 +47,36 @@ class ApiService {
       headers: {'Content-Type': 'application/x-www-form-urlencoded'},
       body: {'username': username, 'password': password},
     );
-    if (response.statusCode != 200) {
-      throw ApiException('Login failed (${response.statusCode})');
+
+    Map<String, dynamic>? data;
+    final raw = response.body;
+    if (raw.isNotEmpty) {
+      try {
+        final decoded = json.decode(raw);
+        if (decoded is Map<String, dynamic>) {
+          data = decoded;
+        }
+      } catch (_) {
+        // Non-JSON body (e.g. HTML error page)
+      }
     }
-    final data = json.decode(response.body) as Map<String, dynamic>;
-    if (data['IsErrorInService'] == true) {
-      throw ApiException(data['Message'] as String? ?? 'Login failed');
+
+    // Failed auth often returns 3xx with JSON: IsErrorInService + Message.
+    if (data != null && data['IsErrorInService'] == true) {
+      throw ApiException(
+        data['Message'] as String? ?? 'Invalid username or password',
+      );
+    }
+
+    final ok = response.statusCode >= 200 && response.statusCode < 300;
+    if (!ok) {
+      throw ApiException(
+        data?['Message'] as String? ?? 'Login failed (${response.statusCode})',
+      );
+    }
+
+    if (data == null) {
+      throw ApiException('Login failed: could not read server response');
     }
 
     applyLoginResponse(data);
