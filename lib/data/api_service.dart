@@ -14,7 +14,7 @@ class ApiService {
         'or use --dart-define-from-file=secrets.json.',
       );
     }
-    return 'https://$host/api/v2';
+    return '$host/api/v2';
   }
 
   String? uaNo;
