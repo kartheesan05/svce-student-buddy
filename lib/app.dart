@@ -1,5 +1,6 @@
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'config/theme.dart';
 import 'config/theme_provider.dart';
 import 'data/app_state.dart';
@@ -25,6 +26,19 @@ class DiaryApp extends StatelessWidget {
               theme: AppTheme.light(useDynamic ? lightDynamic : null),
               darkTheme: AppTheme.dark(useDynamic ? darkDynamic : null),
               themeMode: provider.themeMode,
+              builder: (context, child) {
+                final brightness = Theme.of(context).brightness;
+                final colorScheme = Theme.of(context).colorScheme;
+                return AnnotatedRegion<SystemUiOverlayStyle>(
+                  value: SystemUiOverlayStyle(
+                    systemNavigationBarColor: colorScheme.surface,
+                    systemNavigationBarIconBrightness: brightness == Brightness.dark
+                        ? Brightness.light
+                        : Brightness.dark,
+                  ),
+                  child: child!,
+                );
+              },
               home: ListenableBuilder(
                 listenable: AppStateScope.of(context),
                 builder: (context, _) {
