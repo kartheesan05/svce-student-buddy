@@ -358,23 +358,35 @@ class AppState extends ChangeNotifier {
     int? cumulativeCredits;
 
     try {
-      for (final session in _externalSessions) {
-        try {
-          final data = await api.getExternalResults(
-            session.sessionNo,
-            session.semesterNo,
-          );
-          final parsed = _semesterResultFromApiData(data, session);
-          if (parsed != null) {
-            results.add(parsed);
-            latestCgpa = parsed.cgpa;
+      final outcomes = await Future.wait(
+        _externalSessions.map((session) async {
+          try {
+            final data = await api.getExternalResults(
+              session.sessionNo,
+              session.semesterNo,
+            );
+            final parsed = _semesterResultFromApiData(data, session);
+            return (parsed, data);
+          } catch (_) {
+            return (null, null);
+          }
+        }),
+      );
+
+      for (final outcome in outcomes) {
+        final parsed = outcome.$1;
+        final data = outcome.$2;
+        if (parsed != null) {
+          results.add(parsed);
+          latestCgpa = parsed.cgpa;
+          if (data != null) {
             final extResult =
                 data['extStudentResult'] as Map<String, dynamic>? ?? {};
             cumulativeCredits = double.tryParse(
                     extResult['CUMMULATIVE_CREDITS']?.toString() ?? '')
                 ?.toInt();
           }
-        } catch (_) {}
+        }
       }
 
       semesterResults = results;
