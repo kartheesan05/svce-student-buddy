@@ -52,10 +52,13 @@ class _ScheduleScreenState extends State<ScheduleScreen>
 
     if (allSchedule.isEmpty) {
       return Scaffold(
-        body: CustomScrollView(
-          slivers: [
-            SliverAppBar.large(title: const Text('Schedule')),
-            SliverFillRemaining(
+        body: RefreshIndicator(
+          onRefresh: () => appState.refreshAllData(),
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverAppBar.large(title: const Text('Schedule')),
+              SliverFillRemaining(
               child: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -81,12 +84,15 @@ class _ScheduleScreenState extends State<ScheduleScreen>
               ),
             ),
           ],
+          ),
         ),
       );
     }
 
     return Scaffold(
-      body: NestedScrollView(
+      body: RefreshIndicator(
+        onRefresh: () => appState.refreshAllData(),
+        child: NestedScrollView(
         headerSliverBuilder: (context, _) => [
           SliverAppBar.large(
             title: const Text('Schedule'),
@@ -139,6 +145,7 @@ class _ScheduleScreenState extends State<ScheduleScreen>
               colorScheme: colorScheme,
             );
           }),
+        ),
         ),
       ),
     );

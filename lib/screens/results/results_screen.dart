@@ -23,24 +23,35 @@ class _ResultsScreenState extends State<ResultsScreen> {
     if (results.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: const Text('Results')),
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.assignment_outlined,
-                  size: 64, color: colorScheme.onSurfaceVariant),
-              const SizedBox(height: 12),
-              Text(
-                'No results available',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Results will appear once published',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+        body: RefreshIndicator(
+          onRefresh: () => appState.refreshAllData(),
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.assignment_outlined,
+                          size: 64, color: colorScheme.onSurfaceVariant),
+                      const SizedBox(height: 12),
+                      Text(
+                        'No results available',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Results will appear once published',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -56,9 +67,12 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Results')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
+      body: RefreshIndicator(
+        onRefresh: () => appState.refreshAllData(),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          children: [
           _SgpaTrendChart(
             results: results,
             selectedIndex: _selectedSemester,
@@ -100,6 +114,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
               )),
           const SizedBox(height: 24),
         ],
+        ),
       ),
     );
   }

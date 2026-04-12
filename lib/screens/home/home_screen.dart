@@ -32,15 +32,20 @@ class HomeScreen extends StatelessWidget {
     final student = appState.student;
     final courses = appState.courses;
     final todayClasses = _getTodayClasses(appState);
+    final isScheduleLoading = appState.isScheduleLoading;
+    final isAttendanceLoading = appState.isAttendanceLoading;
 
     final overallAttendance = _calculateOverallAttendance(courses);
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar.large(
-            title: const Text('Diary'),
-          ),
+      body: RefreshIndicator(
+        onRefresh: () => appState.refreshAllData(),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverAppBar.large(
+              title: const Text('Diary'),
+            ),
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             sliver: SliverList(
@@ -50,6 +55,7 @@ class HomeScreen extends StatelessWidget {
                     _GreetingCard(
                       name: student?.name.split(' ').first ?? '',
                       photoBytes: student?.photoBytes,
+                      isProfileLoading: appState.isProfileLoading,
                       colorScheme: colorScheme,
                       theme: theme,
                     ),
@@ -64,7 +70,23 @@ class HomeScreen extends StatelessWidget {
                       theme: theme,
                     ),
                     const SizedBox(height: 8),
-                    if (todayClasses.isEmpty)
+                    if (isScheduleLoading)
+                      Card.filled(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Center(
+                            child: SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    else if (todayClasses.isEmpty)
                       Card.filled(
                         child: Padding(
                           padding: const EdgeInsets.all(24),
@@ -102,7 +124,7 @@ class HomeScreen extends StatelessWidget {
                               },
                             ),
                           )),
-                    if (todayClasses.length > 3)
+                    if (!isScheduleLoading && todayClasses.length > 3)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Center(
@@ -127,6 +149,7 @@ class HomeScreen extends StatelessWidget {
                     _AttendanceOverviewCard(
                       overallAttendance: overallAttendance,
                       courses: courses,
+                      isLoading: isAttendanceLoading,
                       colorScheme: colorScheme,
                       theme: theme,
                       onTap: onViewCourses,
@@ -140,6 +163,9 @@ class HomeScreen extends StatelessWidget {
                     _QuickStatsRow(
                       student: student,
                       courseCount: courses.length,
+                      isCgpaLoading: appState.isExternalResultsLoading &&
+                          student?.cgpa == null,
+                      isCoursesLoading: isAttendanceLoading,
                       colorScheme: colorScheme,
                       theme: theme,
                       onCgpaTap: () => Navigator.push(
@@ -158,6 +184,7 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -181,12 +208,14 @@ class HomeScreen extends StatelessWidget {
 class _GreetingCard extends StatelessWidget {
   final String name;
   final Uint8List? photoBytes;
+  final bool isProfileLoading;
   final ColorScheme colorScheme;
   final ThemeData theme;
 
   const _GreetingCard({
     required this.name,
     this.photoBytes,
+    required this.isProfileLoading,
     required this.colorScheme,
     required this.theme,
   });
@@ -237,18 +266,26 @@ class _GreetingCard extends StatelessWidget {
             CircleAvatar(
               radius: 28,
               backgroundColor: colorScheme.primary,
-              backgroundImage: photoBytes != null
-                  ? MemoryImage(photoBytes!)
-                  : null,
-              child: photoBytes == null
-                  ? Text(
-                      name.isNotEmpty ? name[0] : '?',
-                      style: theme.textTheme.headlineSmall?.copyWith(
+              backgroundImage:
+                  photoBytes != null ? MemoryImage(photoBytes!) : null,
+              child: isProfileLoading && photoBytes == null
+                  ? SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
                         color: colorScheme.onPrimary,
-                        fontWeight: FontWeight.bold,
                       ),
                     )
-                  : null,
+                  : photoBytes == null
+                      ? Text(
+                          name.isNotEmpty ? name[0] : '?',
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            color: colorScheme.onPrimary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      : null,
             ),
           ],
         ),
@@ -291,6 +328,7 @@ class _SectionHeader extends StatelessWidget {
 class _AttendanceOverviewCard extends StatelessWidget {
   final double overallAttendance;
   final List<Course> courses;
+  final bool isLoading;
   final ColorScheme colorScheme;
   final ThemeData theme;
   final VoidCallback? onTap;
@@ -298,6 +336,7 @@ class _AttendanceOverviewCard extends StatelessWidget {
   const _AttendanceOverviewCard({
     required this.overallAttendance,
     required this.courses,
+    required this.isLoading,
     required this.colorScheme,
     required this.theme,
     this.onTap,
@@ -305,71 +344,91 @@ class _AttendanceOverviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lowCourses = courses.where((c) => c.totalClasses > 0 && c.isAttendanceLow).toList();
+    final lowCourses = courses
+        .where((c) => c.totalClasses > 0 && c.isAttendanceLow)
+        .toList();
     return Card.filled(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: onTap,
+        onTap: isLoading ? null : onTap,
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Row(
             children: [
-              AnimatedProgressRing(
-                progress: overallAttendance,
-                size: 88,
-                strokeWidth: 10,
-              progressColor: overallAttendance >= 0.75
-                  ? Colors.green
-                  : colorScheme.error,
-              child: Text(
-                '${(overallAttendance * 100).toStringAsFixed(0)}%',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const SizedBox(width: 20),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Overall Attendance',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${courses.length} courses this semester',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  if (lowCourses.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: colorScheme.errorContainer,
-                        borderRadius: BorderRadius.circular(8),
+              if (isLoading)
+                SizedBox(
+                  width: 88,
+                  height: 88,
+                  child: Center(
+                    child: SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: colorScheme.primary,
                       ),
-                      child: Text(
-                        '${lowCourses.length} course${lowCourses.length > 1 ? 's' : ''} below 75%',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: colorScheme.onErrorContainer,
-                          fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                )
+              else
+                AnimatedProgressRing(
+                  progress: overallAttendance,
+                  size: 88,
+                  strokeWidth: 10,
+                  progressColor: overallAttendance >= 0.75
+                      ? Colors.green
+                      : colorScheme.error,
+                  child: Text(
+                    '${(overallAttendance * 100).toStringAsFixed(0)}%',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Overall Attendance',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      isLoading
+                          ? 'Loading…'
+                          : '${courses.length} courses this semester',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    if (!isLoading && lowCourses.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: colorScheme.errorContainer,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${lowCourses.length} course${lowCourses.length > 1 ? 's' : ''} below 75%',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: colorScheme.onErrorContainer,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -378,6 +437,8 @@ class _AttendanceOverviewCard extends StatelessWidget {
 class _QuickStatsRow extends StatelessWidget {
   final dynamic student;
   final int courseCount;
+  final bool isCgpaLoading;
+  final bool isCoursesLoading;
   final ColorScheme colorScheme;
   final ThemeData theme;
   final VoidCallback? onCgpaTap;
@@ -387,6 +448,8 @@ class _QuickStatsRow extends StatelessWidget {
   const _QuickStatsRow({
     required this.student,
     required this.courseCount,
+    required this.isCgpaLoading,
+    required this.isCoursesLoading,
     required this.colorScheme,
     required this.theme,
     this.onCgpaTap,
@@ -402,18 +465,20 @@ class _QuickStatsRow extends StatelessWidget {
           icon: Icons.school_outlined,
           label: 'CGPA',
           value: student?.cgpa?.toStringAsFixed(2) ?? '–',
+          valueLoading: isCgpaLoading,
           colorScheme: colorScheme,
           theme: theme,
-          onTap: onCgpaTap,
+          onTap: isCgpaLoading ? null : onCgpaTap,
         ),
         const SizedBox(width: 8),
         _StatChip(
           icon: Icons.menu_book_outlined,
           label: 'Courses',
           value: '$courseCount',
+          valueLoading: isCoursesLoading,
           colorScheme: colorScheme,
           theme: theme,
-          onTap: onCoursesTap,
+          onTap: isCoursesLoading ? null : onCoursesTap,
         ),
         const SizedBox(width: 8),
         _StatChip(
@@ -433,6 +498,7 @@ class _StatChip extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
+  final bool valueLoading;
   final ColorScheme colorScheme;
   final ThemeData theme;
   final VoidCallback? onTap;
@@ -441,6 +507,7 @@ class _StatChip extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
+    this.valueLoading = false,
     required this.colorScheme,
     required this.theme,
     this.onTap,
@@ -459,12 +526,27 @@ class _StatChip extends StatelessWidget {
               children: [
                 Icon(icon, color: colorScheme.primary, size: 24),
                 const SizedBox(height: 8),
-                Text(
-                  value,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
+                if (valueLoading)
+                  SizedBox(
+                    height: 32,
+                    child: Center(
+                      child: SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  Text(
+                    value,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
                 Text(
                   label,
                   style: theme.textTheme.bodySmall?.copyWith(

@@ -33,11 +33,14 @@ class _CoursesScreenState extends State<CoursesScreen> {
     final filtered = _filteredCourses(appState.courses);
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar.large(
-            title: const Text('Courses'),
-          ),
+      body: RefreshIndicator(
+        onRefresh: () => appState.refreshAllData(),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverAppBar.large(
+              title: const Text('Courses'),
+            ),
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             sliver: SliverList(
@@ -121,6 +124,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
           ),
           const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
         ],
+        ),
       ),
     );
   }

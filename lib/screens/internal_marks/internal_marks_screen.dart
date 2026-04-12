@@ -14,9 +14,12 @@ class InternalMarksScreen extends StatelessWidget {
     final isLoading = appState.isInternalMarksLoading;
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar.large(title: const Text('Internal Marks')),
+      body: RefreshIndicator(
+        onRefresh: () => appState.refreshAllData(),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverAppBar.large(title: const Text('Internal Marks')),
           if (isLoading)
             const SliverFillRemaining(
               child: Center(child: CircularProgressIndicator()),
@@ -62,6 +65,7 @@ class InternalMarksScreen extends StatelessWidget {
               ),
             ),
         ],
+        ),
       ),
     );
   }

@@ -29,6 +29,10 @@ class AppState extends ChangeNotifier {
   List<SemesterResult> semesterResults = [];
   List<InternalMark> internalMarks = [];
   bool isInternalMarksLoading = false;
+  bool isExternalResultsLoading = false;
+  bool isProfileLoading = false;
+  bool isAttendanceLoading = false;
+  bool isScheduleLoading = false;
 
   bool isLoggedIn = false;
   bool isLoading = false;
@@ -91,7 +95,7 @@ class AppState extends ChangeNotifier {
       ..sort((a, b) => a.semesterNo.compareTo(b.semesterNo));
   }
 
-  Future<void> _loadAllData() async {
+  Future<void> _reloadData() async {
     try {
       await Future.wait([
         _loadProfile(),
@@ -101,12 +105,24 @@ class AppState extends ChangeNotifier {
         _loadInternalMarks(),
       ]);
     } catch (_) {}
+    notifyListeners();
+  }
 
+  Future<void> _loadAllData() async {
+    await _reloadData();
     isLoading = false;
     notifyListeners();
   }
 
+  /// Reloads profile, courses, schedule, results, and internal marks from the API.
+  Future<void> refreshAllData() async {
+    if (!isLoggedIn) return;
+    await _reloadData();
+  }
+
   Future<void> _loadProfile() async {
+    isProfileLoading = true;
+    notifyListeners();
     try {
       final data = await api.getProfile();
       if (student != null) {
@@ -115,10 +131,15 @@ class AppState extends ChangeNotifier {
       }
     } catch (e, st) {
       debugPrint('Profile load error: $e\n$st');
+    } finally {
+      isProfileLoading = false;
+      notifyListeners();
     }
   }
 
   Future<void> _loadAttendance() async {
+    isAttendanceLoading = true;
+    notifyListeners();
     try {
       final data = await api.getAttendance();
       final details = data['AttendanceDetails'] as List<dynamic>? ?? [];
@@ -158,10 +179,15 @@ class AppState extends ChangeNotifier {
       notifyListeners();
     } catch (e, st) {
       debugPrint('Attendance load error: $e\n$st');
+    } finally {
+      isAttendanceLoading = false;
+      notifyListeners();
     }
   }
 
   Future<void> _loadSchedule() async {
+    isScheduleLoading = true;
+    notifyListeners();
     try {
       final data = await api.getSchedule();
       final tables = data['ClassTables'] as List<dynamic>?;
@@ -220,6 +246,9 @@ class AppState extends ChangeNotifier {
       notifyListeners();
     } catch (e, st) {
       debugPrint('Schedule load error: $e\n$st');
+    } finally {
+      isScheduleLoading = false;
+      notifyListeners();
     }
   }
 
@@ -259,84 +288,89 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _loadExternalResults() async {
+    isExternalResultsLoading = true;
+    notifyListeners();
+
     final results = <SemesterResult>[];
     double? latestCgpa;
     int? cumulativeCredits;
 
-    for (final session in _externalSessions) {
-      try {
-        final data = await api.getExternalResults(
-          session.sessionNo,
-          session.semesterNo,
-        );
+    try {
+      for (final session in _externalSessions) {
+        try {
+          final data = await api.getExternalResults(
+            session.sessionNo,
+            session.semesterNo,
+          );
 
-        final marks = data['ExternalMarks'] as List<dynamic>? ?? [];
-        final resultInfo = data['Result'] as List<dynamic>? ?? [];
-        final extResult =
-            data['extStudentResult'] as Map<String, dynamic>? ?? {};
+          final marks = data['ExternalMarks'] as List<dynamic>? ?? [];
+          final resultInfo = data['Result'] as List<dynamic>? ?? [];
+          final extResult =
+              data['extStudentResult'] as Map<String, dynamic>? ?? {};
 
-        double sgpa = 0;
-        double cgpa = 0;
-        double semCredits = 0;
+          double sgpa = 0;
+          double cgpa = 0;
+          double semCredits = 0;
 
-        for (final r in resultInfo) {
-          final m = r as Map<String, dynamic>;
-          final key = m['Key'] as String? ?? '';
-          final value = double.tryParse(m['Value']?.toString() ?? '') ?? 0;
-          if (key == 'SGPA') sgpa = value;
-          if (key == 'CGPA') cgpa = value;
-        }
-        if (sgpa == 0) {
-          sgpa = double.tryParse(extResult['SGPA']?.toString() ?? '') ?? 0;
-        }
-        if (cgpa == 0) {
-          cgpa = double.tryParse(extResult['CGPA']?.toString() ?? '') ?? 0;
-        }
+          for (final r in resultInfo) {
+            final m = r as Map<String, dynamic>;
+            final key = m['Key'] as String? ?? '';
+            final value = double.tryParse(m['Value']?.toString() ?? '') ?? 0;
+            if (key == 'SGPA') sgpa = value;
+            if (key == 'CGPA') cgpa = value;
+          }
+          if (sgpa == 0) {
+            sgpa = double.tryParse(extResult['SGPA']?.toString() ?? '') ?? 0;
+          }
+          if (cgpa == 0) {
+            cgpa = double.tryParse(extResult['CGPA']?.toString() ?? '') ?? 0;
+          }
 
-        latestCgpa = cgpa;
-        cumulativeCredits = double.tryParse(
-                extResult['CUMMULATIVE_CREDITS']?.toString() ?? '')
-            ?.toInt();
+          latestCgpa = cgpa;
+          cumulativeCredits = double.tryParse(
+                  extResult['CUMMULATIVE_CREDITS']?.toString() ?? '')
+              ?.toInt();
 
-        final grades = <CourseGrade>[];
-        for (final mark in marks) {
-          final m = mark as Map<String, dynamic>;
-          final credit =
-              double.tryParse(m['Credits']?.toString() ?? '') ?? 0;
-          final grade = m['Grade'] as String? ?? '';
-          semCredits += credit;
-          grades.add(CourseGrade(
-            courseCode: m['CourseCode'] as String? ?? '',
-            courseName:
-                (m['CourseName'] as String? ?? '').replaceAll('\u00a0', ' '),
-            credits: credit,
-            grade: grade,
-            gradePoint: CourseGrade.gradeToPoint(grade),
+          final grades = <CourseGrade>[];
+          for (final mark in marks) {
+            final m = mark as Map<String, dynamic>;
+            final credit =
+                double.tryParse(m['Credits']?.toString() ?? '') ?? 0;
+            final grade = m['Grade'] as String? ?? '';
+            semCredits += credit;
+            grades.add(CourseGrade(
+              courseCode: m['CourseCode'] as String? ?? '',
+              courseName:
+                  (m['CourseName'] as String? ?? '').replaceAll('\u00a0', ' '),
+              credits: credit,
+              grade: grade,
+              gradePoint: CourseGrade.gradeToPoint(grade),
+            ));
+          }
+
+          results.add(SemesterResult(
+            semester: session.semesterNo,
+            sgpa: sgpa,
+            cgpa: cgpa,
+            creditsEarned: semCredits,
+            grades: grades,
+            result: extResult['PASSFAIL'] as String?,
           ));
-        }
+        } catch (_) {}
+      }
 
-        results.add(SemesterResult(
-          semester: session.semesterNo,
-          sgpa: sgpa,
-          cgpa: cgpa,
-          creditsEarned: semCredits,
-          grades: grades,
-          result: extResult['PASSFAIL'] as String?,
-        ));
-      } catch (_) {}
+      semesterResults = results;
+
+      if (student != null && latestCgpa != null) {
+        student = student!.copyWith(
+          cgpa: latestCgpa,
+          totalCreditsEarned: cumulativeCredits,
+        );
+      }
+    } finally {
+      isExternalResultsLoading = false;
+      notifyListeners();
     }
-
-    semesterResults = results;
-
-    if (student != null && latestCgpa != null) {
-
-      student = student!.copyWith(
-        cgpa: latestCgpa,
-        totalCreditsEarned: cumulativeCredits,
-      );
-    }
-
-    notifyListeners();
   }
 
   Future<void> _loadInternalMarks() async {
@@ -383,6 +417,11 @@ class AppState extends ChangeNotifier {
     schedule = [];
     semesterResults = [];
     internalMarks = [];
+    isExternalResultsLoading = false;
+    isProfileLoading = false;
+    isAttendanceLoading = false;
+    isScheduleLoading = false;
+    isInternalMarksLoading = false;
     _loginData = null;
     _externalSessions = [];
     api.uaNo = null;

@@ -25,13 +25,17 @@ class ProfileScreen extends StatelessWidget {
 
     if (student == null) {
       return Scaffold(
-        body: CustomScrollView(
-          slivers: [
-            SliverAppBar.large(title: const Text('Profile')),
-            const SliverFillRemaining(
-              child: Center(child: CircularProgressIndicator()),
-            ),
-          ],
+        body: RefreshIndicator(
+          onRefresh: () => appState.refreshAllData(),
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverAppBar.large(title: const Text('Profile')),
+              const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -44,16 +48,19 @@ class ProfileScreen extends StatelessWidget {
         .join();
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar.large(
-            title: const Text('Profile'),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                StaggeredColumn(
+      body: RefreshIndicator(
+        onRefresh: () => appState.refreshAllData(),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverAppBar.large(
+              title: const Text('Profile'),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  StaggeredColumn(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     const SizedBox(height: 8, width: double.infinity),
@@ -363,6 +370,7 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }

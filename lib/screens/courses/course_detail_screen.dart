@@ -15,10 +15,17 @@ class CourseDetailScreen extends StatefulWidget {
 }
 
 class _CourseDetailScreenState extends State<CourseDetailScreen> {
+  late Course _course;
   List<AttendanceEntry>? _entries;
   bool _loading = true;
   bool _fetched = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _course = widget.course;
+  }
 
   @override
   void didChangeDependencies() {
@@ -29,8 +36,24 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     }
   }
 
+  Future<void> _onRefresh() async {
+    final appState = AppStateScope.of(context);
+    await appState.refreshAllData();
+    if (!mounted) return;
+    final no = _course.courseNo;
+    if (no != null && no.isNotEmpty) {
+      for (final c in appState.courses) {
+        if (c.courseNo == no) {
+          setState(() => _course = c);
+          break;
+        }
+      }
+    }
+    await _fetchAttendance();
+  }
+
   Future<void> _fetchAttendance() async {
-    final courseNo = widget.course.courseNo;
+    final courseNo = _course.courseNo;
     if (courseNo == null || courseNo.isEmpty) {
       setState(() {
         _loading = false;
@@ -66,7 +89,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final course = widget.course;
+    final course = _course;
     final attendance = course.attendancePercent;
 
     final Color attendanceColor;
@@ -82,9 +105,12 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text(course.code)),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
+      body: RefreshIndicator(
+        onRefresh: _onRefresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          children: [
           _AnimatedHeader(course: course, theme: theme, colorScheme: colorScheme),
           const SizedBox(height: 24),
           if (course.totalClasses > 0) ...[
@@ -220,13 +246,14 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
           ),
           const SizedBox(height: 24),
         ],
+        ),
       ),
     );
   }
 
   int? _classesCanMiss() {
-    if (widget.course.totalClasses == 0) return null;
-    return (widget.course.attendedClasses / 0.75 - widget.course.totalClasses).floor();
+    if (_course.totalClasses == 0) return null;
+    return (_course.attendedClasses / 0.75 - _course.totalClasses).floor();
   }
 }
 
