@@ -30,6 +30,8 @@ class AppState extends ChangeNotifier {
   List<InternalMark> internalMarks = [];
   bool isInternalMarksLoading = false;
   bool isExternalResultsLoading = false;
+  /// True while fetching all semesters for the Results screen (trend chart).
+  bool isSemesterResultsListLoading = false;
   bool isProfileLoading = false;
   bool isAttendanceLoading = false;
   bool isScheduleLoading = false;
@@ -40,6 +42,7 @@ class AppState extends ChangeNotifier {
 
   Map<String, dynamic>? _loginData;
   List<_SessionInfo> _externalSessions = [];
+  Future<void>? _fullSemesterResultsInFlight;
 
   Future<String?> login(String username, String password) async {
     try {
@@ -101,7 +104,7 @@ class AppState extends ChangeNotifier {
         _loadProfile(),
         _loadAttendance(),
         _loadSchedule(),
-        _loadExternalResults(),
+        _loadLatestExternalCgpa(),
         _loadInternalMarks(),
       ]);
     } catch (_) {}
@@ -114,7 +117,8 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Reloads profile, courses, schedule, results, and internal marks from the API.
+  /// Reloads profile, courses, schedule, latest CGPA, and internal marks from the API.
+  /// Full semester lists for the Results screen are loaded via [loadFullSemesterResults].
   Future<void> refreshAllData() async {
     if (!isLoggedIn) return;
     await _reloadData();
@@ -287,8 +291,66 @@ class AppState extends ChangeNotifier {
     return merged;
   }
 
-  Future<void> _loadExternalResults() async {
+  /// One request for the highest [semesterNo] in [ExternalSession] — updates [student] CGPA.
+  /// Clears [semesterResults]; use [loadFullSemesterResults] on the Results screen.
+  Future<void> _loadLatestExternalCgpa() async {
     isExternalResultsLoading = true;
+    semesterResults = [];
+    notifyListeners();
+
+    try {
+      if (_externalSessions.isEmpty) {
+        return;
+      }
+
+      final latest = _externalSessions.last;
+      final data = await api.getExternalResults(
+        latest.sessionNo,
+        latest.semesterNo,
+      );
+
+      final parsed = _semesterResultFromApiData(data, latest);
+      if (parsed != null && student != null) {
+        final extResult =
+            data['extStudentResult'] as Map<String, dynamic>? ?? {};
+        final cumulativeCredits = double.tryParse(
+                extResult['CUMMULATIVE_CREDITS']?.toString() ?? '')
+            ?.toInt();
+        student = student!.copyWith(
+          cgpa: parsed.cgpa,
+          totalCreditsEarned: cumulativeCredits,
+        );
+      }
+    } catch (e, st) {
+      debugPrint('Latest external results load error: $e\n$st');
+    } finally {
+      isExternalResultsLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Fetches every semester in [ExternalSession] for the Results screen and SGPA trend chart.
+  Future<void> loadFullSemesterResults() async {
+    if (!isLoggedIn || _externalSessions.isEmpty) {
+      semesterResults = [];
+      notifyListeners();
+      return;
+    }
+    if (_fullSemesterResultsInFlight != null) {
+      await _fullSemesterResultsInFlight;
+      return;
+    }
+    final run = _performFullSemesterResultsLoad();
+    _fullSemesterResultsInFlight = run;
+    try {
+      await run;
+    } finally {
+      _fullSemesterResultsInFlight = null;
+    }
+  }
+
+  Future<void> _performFullSemesterResultsLoad() async {
+    isSemesterResultsListLoading = true;
     notifyListeners();
 
     final results = <SemesterResult>[];
@@ -302,60 +364,16 @@ class AppState extends ChangeNotifier {
             session.sessionNo,
             session.semesterNo,
           );
-
-          final marks = data['ExternalMarks'] as List<dynamic>? ?? [];
-          final resultInfo = data['Result'] as List<dynamic>? ?? [];
-          final extResult =
-              data['extStudentResult'] as Map<String, dynamic>? ?? {};
-
-          double sgpa = 0;
-          double cgpa = 0;
-          double semCredits = 0;
-
-          for (final r in resultInfo) {
-            final m = r as Map<String, dynamic>;
-            final key = m['Key'] as String? ?? '';
-            final value = double.tryParse(m['Value']?.toString() ?? '') ?? 0;
-            if (key == 'SGPA') sgpa = value;
-            if (key == 'CGPA') cgpa = value;
+          final parsed = _semesterResultFromApiData(data, session);
+          if (parsed != null) {
+            results.add(parsed);
+            latestCgpa = parsed.cgpa;
+            final extResult =
+                data['extStudentResult'] as Map<String, dynamic>? ?? {};
+            cumulativeCredits = double.tryParse(
+                    extResult['CUMMULATIVE_CREDITS']?.toString() ?? '')
+                ?.toInt();
           }
-          if (sgpa == 0) {
-            sgpa = double.tryParse(extResult['SGPA']?.toString() ?? '') ?? 0;
-          }
-          if (cgpa == 0) {
-            cgpa = double.tryParse(extResult['CGPA']?.toString() ?? '') ?? 0;
-          }
-
-          latestCgpa = cgpa;
-          cumulativeCredits = double.tryParse(
-                  extResult['CUMMULATIVE_CREDITS']?.toString() ?? '')
-              ?.toInt();
-
-          final grades = <CourseGrade>[];
-          for (final mark in marks) {
-            final m = mark as Map<String, dynamic>;
-            final credit =
-                double.tryParse(m['Credits']?.toString() ?? '') ?? 0;
-            final grade = m['Grade'] as String? ?? '';
-            semCredits += credit;
-            grades.add(CourseGrade(
-              courseCode: m['CourseCode'] as String? ?? '',
-              courseName:
-                  (m['CourseName'] as String? ?? '').replaceAll('\u00a0', ' '),
-              credits: credit,
-              grade: grade,
-              gradePoint: CourseGrade.gradeToPoint(grade),
-            ));
-          }
-
-          results.add(SemesterResult(
-            semester: session.semesterNo,
-            sgpa: sgpa,
-            cgpa: cgpa,
-            creditsEarned: semCredits,
-            grades: grades,
-            result: extResult['PASSFAIL'] as String?,
-          ));
         } catch (_) {}
       }
 
@@ -368,8 +386,66 @@ class AppState extends ChangeNotifier {
         );
       }
     } finally {
-      isExternalResultsLoading = false;
+      isSemesterResultsListLoading = false;
       notifyListeners();
+    }
+  }
+
+  SemesterResult? _semesterResultFromApiData(
+    Map<String, dynamic> data,
+    _SessionInfo session,
+  ) {
+    try {
+      final marks = data['ExternalMarks'] as List<dynamic>? ?? [];
+      final resultInfo = data['Result'] as List<dynamic>? ?? [];
+      final extResult =
+          data['extStudentResult'] as Map<String, dynamic>? ?? {};
+
+      double sgpa = 0;
+      double cgpa = 0;
+      double semCredits = 0;
+
+      for (final r in resultInfo) {
+        final m = r as Map<String, dynamic>;
+        final key = m['Key'] as String? ?? '';
+        final value = double.tryParse(m['Value']?.toString() ?? '') ?? 0;
+        if (key == 'SGPA') sgpa = value;
+        if (key == 'CGPA') cgpa = value;
+      }
+      if (sgpa == 0) {
+        sgpa = double.tryParse(extResult['SGPA']?.toString() ?? '') ?? 0;
+      }
+      if (cgpa == 0) {
+        cgpa = double.tryParse(extResult['CGPA']?.toString() ?? '') ?? 0;
+      }
+
+      final grades = <CourseGrade>[];
+      for (final mark in marks) {
+        final m = mark as Map<String, dynamic>;
+        final credit = double.tryParse(m['Credits']?.toString() ?? '') ?? 0;
+        final grade = m['Grade'] as String? ?? '';
+        semCredits += credit;
+        grades.add(CourseGrade(
+          courseCode: m['CourseCode'] as String? ?? '',
+          courseName:
+              (m['CourseName'] as String? ?? '').replaceAll('\u00a0', ' '),
+          credits: credit,
+          grade: grade,
+          gradePoint: CourseGrade.gradeToPoint(grade),
+        ));
+      }
+
+      return SemesterResult(
+        semester: session.semesterNo,
+        sgpa: sgpa,
+        cgpa: cgpa,
+        creditsEarned: semCredits,
+        grades: grades,
+        result: extResult['PASSFAIL'] as String?,
+      );
+    } catch (e, st) {
+      debugPrint('Parse external result error: $e\n$st');
+      return null;
     }
   }
 
@@ -418,6 +494,7 @@ class AppState extends ChangeNotifier {
     semesterResults = [];
     internalMarks = [];
     isExternalResultsLoading = false;
+    isSemesterResultsListLoading = false;
     isProfileLoading = false;
     isAttendanceLoading = false;
     isScheduleLoading = false;

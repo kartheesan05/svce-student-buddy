@@ -14,6 +14,21 @@ class _ResultsScreenState extends State<ResultsScreen> {
   int _selectedSemester = -1;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      AppStateScope.of(context).loadFullSemesterResults();
+    });
+  }
+
+  Future<void> _onRefresh() async {
+    final appState = AppStateScope.of(context);
+    await appState.refreshAllData();
+    await appState.loadFullSemesterResults();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -21,10 +36,30 @@ class _ResultsScreenState extends State<ResultsScreen> {
     final results = appState.semesterResults;
 
     if (results.isEmpty) {
+      if (appState.isSemesterResultsListLoading) {
+        return Scaffold(
+          appBar: AppBar(title: const Text('Results')),
+          body: RefreshIndicator(
+            onRefresh: _onRefresh,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                SliverFillRemaining(
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
       return Scaffold(
         appBar: AppBar(title: const Text('Results')),
         body: RefreshIndicator(
-          onRefresh: () => appState.refreshAllData(),
+          onRefresh: _onRefresh,
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
@@ -68,7 +103,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Results')),
       body: RefreshIndicator(
-        onRefresh: () => appState.refreshAllData(),
+        onRefresh: _onRefresh,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
