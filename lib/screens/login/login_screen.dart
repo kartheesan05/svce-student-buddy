@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../data/app_state.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -73,8 +74,16 @@ class _LoginScreenState extends State<LoginScreen> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Scaffold(
-      body: Center(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        systemNavigationBarColor: colorScheme.surface,
+        systemNavigationBarIconBrightness:
+            theme.brightness == Brightness.dark
+                ? Brightness.light
+                : Brightness.dark,
+      ),
+      child: Scaffold(
+        body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Form(
@@ -205,6 +214,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
+      ),
       ),
     );
   }
