@@ -97,7 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Sign in with your college credentials',
+                  'Sign in with your SVCE ERP credentials',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
@@ -107,7 +107,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _usernameController,
                   decoration: const InputDecoration(
                     labelText: 'SVCE Email',
-                    hintText: '0000xx0000@svce.ac.in',
+                    // hintText: '0000xx0000@svce.ac.in',
                     prefixIcon: Icon(Icons.email_outlined),
                   ),
                   keyboardType: TextInputType.emailAddress,

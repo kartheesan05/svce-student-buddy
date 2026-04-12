@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../config/theme_provider.dart';
 import '../../data/app_state.dart';
 import '../../widgets/animated_progress_ring.dart';
 import '../../widgets/staggered_column.dart';
 import '../results/results_screen.dart';
+
+Future<void> _openDeveloperSite() async {
+  final uri = Uri.parse('https://kartheesan.dev');
+  // Do not gate on canLaunchUrl: on Android 11+ it often returns false unless
+  // AndroidManifest.xml declares VIEW + https queries; launchUrl still works.
+  await launchUrl(uri, mode: LaunchMode.externalApplication);
+}
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -304,6 +312,48 @@ class ProfileScreen extends StatelessWidget {
                         onPressed: () async => appState.logout(),
                         icon: const Icon(Icons.logout),
                         label: const Text('Sign Out'),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Center(
+                      child: TextButton(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                        ),
+                        onPressed: () => _openDeveloperSite(),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Developer',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'kartheesan.dev',
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    color: colorScheme.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.open_in_new,
+                                  size: 16,
+                                  color: colorScheme.primary,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: 32),
