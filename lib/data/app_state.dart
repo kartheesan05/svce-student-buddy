@@ -336,6 +336,10 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       return;
     }
+    if (semesterResults.length == _externalSessions.length &&
+        semesterResults.isNotEmpty) {
+      return;
+    }
     if (_fullSemesterResultsInFlight != null) {
       await _fullSemesterResultsInFlight;
       return;
