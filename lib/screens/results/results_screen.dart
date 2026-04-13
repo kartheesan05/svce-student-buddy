@@ -507,7 +507,16 @@ class _GradeCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${grade.courseCode}  •  ${grade.credits.toStringAsFixed(grade.credits == grade.credits.roundToDouble() ? 0 : 1)} credits',
+                    '${grade.courseCode}  •  Credits: ${grade.credits.toStringAsFixed(grade.credits == grade.credits.roundToDouble() ? 0 : 1)}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    grade.gradePoint > 0
+                        ? 'Grade: ${grade.grade}  •  Grade Point: ${grade.gradePoint}'
+                        : 'Grade: ${grade.grade}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -515,14 +524,6 @@ class _GradeCard extends StatelessWidget {
                 ],
               ),
             ),
-            if (grade.gradePoint > 0)
-              Text(
-                '${grade.gradePoint}',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
           ],
         ),
       ),
