@@ -114,6 +114,7 @@ class ProfileScreen extends StatelessWidget {
                       children: [
                         if (student.cgpa != null)
                           AnimatedProgressRing(
+                            backgroundColor: colorScheme.primary.withValues(alpha: 0.2),
                             progress: student.cgpa! / 10,
                             size: 100,
                             strokeWidth: 10,

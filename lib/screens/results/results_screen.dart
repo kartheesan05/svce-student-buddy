@@ -342,6 +342,7 @@ class _SemesterSummary extends StatelessWidget {
                 children: [
                   AnimatedProgressRing(
                     key: ValueKey('sgpa-${result.semester}'),
+                    backgroundColor: colorScheme.primary.withValues(alpha: 0.2),
                     progress: result.sgpa / 10,
                     size: 72,
                     strokeWidth: 8,
@@ -376,6 +377,7 @@ class _SemesterSummary extends StatelessWidget {
                 children: [
                   AnimatedProgressRing(
                     key: ValueKey('cgpa-${result.semester}'),
+                    backgroundColor: colorScheme.tertiary.withValues(alpha: 0.2),
                     progress: result.cgpa / 10,
                     size: 72,
                     strokeWidth: 8,

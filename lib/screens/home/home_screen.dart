@@ -372,12 +372,20 @@ class _AttendanceOverviewCard extends StatelessWidget {
                 )
               else
                 AnimatedProgressRing(
+                  backgroundColor: overallAttendance >= 0.85
+                      ? Colors.green.withValues(alpha: 0.2)
+                      : overallAttendance >= 0.75
+                          ? Colors.orange.withValues(alpha: 0.2)
+                          : colorScheme.error.withValues(alpha: 0.2),
                   progress: overallAttendance,
                   size: 88,
                   strokeWidth: 10,
-                  progressColor: overallAttendance >= 0.75
+                  progressColor: overallAttendance >= 0.85
                       ? Colors.green
-                      : colorScheme.error,
+                      : overallAttendance >= 0.75
+                          ? Colors.orange
+                          : colorScheme.error,
+                 
                   child: Text(
                     '${(overallAttendance * 100).toStringAsFixed(0)}%',
                     style: theme.textTheme.titleMedium?.copyWith(

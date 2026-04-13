@@ -116,6 +116,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
           if (course.totalClasses > 0) ...[
             Center(
               child: AnimatedProgressRing(
+                backgroundColor: attendanceColor.withValues(alpha: 0.2),
                 progress: attendance / 100,
                 size: 160,
                 strokeWidth: 14,
