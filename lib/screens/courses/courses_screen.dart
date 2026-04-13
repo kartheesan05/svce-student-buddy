@@ -48,7 +48,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
                 TextField(
                   onChanged: (v) => setState(() => _searchQuery = v),
                   decoration: const InputDecoration(
-                    hintText: 'Search courses...',
+                    hintText: 'Search by course name or code',
                     prefixIcon: Icon(Icons.search),
                   ),
                 ),
@@ -58,7 +58,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
                   child: Row(
                     children: [
                       _FilterChip(
-                        label: 'All',
+                        label: 'All courses',
                         selected: _filterType == null,
                         onSelected: () =>
                             setState(() => _filterType = null),
@@ -72,14 +72,14 @@ class _CoursesScreenState extends State<CoursesScreen> {
                       ),
                       const SizedBox(width: 8),
                       _FilterChip(
-                        label: 'Lab',
+                        label: 'Laboratory',
                         selected: _filterType == CourseType.lab,
                         onSelected: () =>
                             setState(() => _filterType = CourseType.lab),
                       ),
                       const SizedBox(width: 8),
                       _FilterChip(
-                        label: 'Elective',
+                        label: 'Electives',
                         selected: _filterType == CourseType.elective,
                         onSelected: () =>
                             setState(() => _filterType = CourseType.elective),
@@ -89,7 +89,9 @@ class _CoursesScreenState extends State<CoursesScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${filtered.length} courses  •  ${_totalCredits(filtered)} credits',
+                  filtered.length == 1
+                      ? '1 course'
+                      : '${filtered.length} courses',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
@@ -127,14 +129,6 @@ class _CoursesScreenState extends State<CoursesScreen> {
         ),
       ),
     );
-  }
-
-  String _totalCredits(List<Course> courses) {
-    final known = courses.where((c) => c.credits != null).toList();
-    if (known.isEmpty) return '–';
-    final total = known.fold<int>(0, (sum, c) => sum + c.credits!);
-    final suffix = known.length < courses.length ? '+' : '';
-    return '$total$suffix';
   }
 }
 
