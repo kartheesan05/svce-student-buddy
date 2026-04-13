@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import '../../data/app_state.dart';
 import '../../data/models/course.dart';
 import '../../widgets/course_card.dart';
-import 'course_detail_screen.dart';
+import '../courses/course_detail_screen.dart';
 
-class CoursesScreen extends StatefulWidget {
-  const CoursesScreen({super.key});
+class AttendanceScreen extends StatefulWidget {
+  const AttendanceScreen({super.key});
 
   @override
-  State<CoursesScreen> createState() => _CoursesScreenState();
+  State<AttendanceScreen> createState() => _AttendanceScreenState();
 }
 
-class _CoursesScreenState extends State<CoursesScreen> {
+class _AttendanceScreenState extends State<AttendanceScreen> {
   String _searchQuery = '';
   CourseType? _filterType;
 
@@ -39,7 +39,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverAppBar.large(
-              title: const Text('Courses'),
+              title: const Text('Attendance'),
             ),
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 16),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'home/home_screen.dart';
-import 'courses/courses_screen.dart';
+import 'attendance/attendance_screen.dart';
 import 'internal_marks/internal_marks_screen.dart';
 import 'profile/profile_screen.dart';
 
@@ -36,11 +36,11 @@ class _NavigationShellState extends State<NavigationShell> {
           sizing: StackFit.expand,
           children: [
             HomeScreen(
-              onViewCourses: () => _onTabSelected(1),
+              onViewAttendance: () => _onTabSelected(1),
               onViewInternalMarks: () => _onTabSelected(2),
               onViewProfile: () => _onTabSelected(3),
             ),
-            const CoursesScreen(),
+            const AttendanceScreen(),
             const InternalMarksScreen(),
             const ProfileScreen(),
           ],
@@ -55,9 +55,9 @@ class _NavigationShellState extends State<NavigationShell> {
               label: 'Home',
             ),
             NavigationDestination(
-              icon: Icon(Icons.menu_book_outlined),
-              selectedIcon: Icon(Icons.menu_book),
-              label: 'Courses',
+              icon: Icon(Icons.event_available_outlined),
+              selectedIcon: Icon(Icons.event_available),
+              label: 'Attendance',
             ),
             NavigationDestination(
               icon: Icon(Icons.assignment_outlined),

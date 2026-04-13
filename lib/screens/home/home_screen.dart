@@ -13,13 +13,13 @@ import '../results/results_screen.dart';
 import '../schedule/schedule_screen.dart';
 
 class HomeScreen extends StatelessWidget {
-  final VoidCallback onViewCourses;
+  final VoidCallback onViewAttendance;
   final VoidCallback onViewInternalMarks;
   final VoidCallback onViewProfile;
 
   const HomeScreen({
     super.key,
-    required this.onViewCourses,
+    required this.onViewAttendance,
     required this.onViewInternalMarks,
     required this.onViewProfile,
   });
@@ -141,8 +141,8 @@ class HomeScreen extends StatelessWidget {
                     const SizedBox(height: 20),
                     _SectionHeader(
                       title: 'Attendance Overview',
-                      actionLabel: 'All Courses',
-                      onAction: onViewCourses,
+                      actionLabel: 'View all',
+                      onAction: onViewAttendance,
                       theme: theme,
                     ),
                     const SizedBox(height: 8),
@@ -152,7 +152,7 @@ class HomeScreen extends StatelessWidget {
                       isLoading: isAttendanceLoading,
                       colorScheme: colorScheme,
                       theme: theme,
-                      onTap: onViewCourses,
+                      onTap: onViewAttendance,
                     ),
                     const SizedBox(height: 20),
                     _SectionHeader(
@@ -174,7 +174,7 @@ class HomeScreen extends StatelessWidget {
                           builder: (_) => const ResultsScreen(),
                         ),
                       ),
-                      onCoursesTap: onViewCourses,
+                      onCoursesTap: onViewAttendance,
                       onSemesterTap: onViewProfile,
                     ),
                     const SizedBox(height: 32),
