@@ -49,7 +49,28 @@ class AppState extends ChangeNotifier {
   List<_SessionInfo> _externalSessions = [];
   Future<void>? _fullSemesterResultsInFlight;
   bool _isMockSession = false;
+  bool _isHandlingSessionExpiry = false;
   final Map<String, List<AttendanceEntry>> _mockAttendanceBySubject = {};
+
+  Future<void> _handleApiError(
+    Object error,
+    StackTrace stackTrace,
+    String context,
+  ) async {
+    debugPrint('$context error: $error\n$stackTrace');
+    if (_isHandlingSessionExpiry) return;
+    if (error is! ApiException || !error.message.contains('Session expired')) {
+      return;
+    }
+    _isHandlingSessionExpiry = true;
+    this.error = error.message;
+    notifyListeners();
+    try {
+      await logout();
+    } finally {
+      _isHandlingSessionExpiry = false;
+    }
+  }
 
   Future<String?> login(String username, String password) async {
     try {
@@ -149,14 +170,19 @@ class AppState extends ChangeNotifier {
       return List<AttendanceEntry>.from(entries)
         ..sort((a, b) => b.date.compareTo(a.date));
     }
-    final data = await api.getAttendanceBySubject(courseNo);
-    final list = data['AttendanceBySubject'] as List<dynamic>? ?? [];
-    final entries =
-        list
-            .map((e) => AttendanceEntry.fromJson(e as Map<String, dynamic>))
-            .toList()
-          ..sort((a, b) => b.date.compareTo(a.date));
-    return entries;
+    try {
+      final data = await api.getAttendanceBySubject(courseNo);
+      final list = data['AttendanceBySubject'] as List<dynamic>? ?? [];
+      final entries =
+          list
+              .map((e) => AttendanceEntry.fromJson(e as Map<String, dynamic>))
+              .toList()
+            ..sort((a, b) => b.date.compareTo(a.date));
+      return entries;
+    } catch (e, st) {
+      await _handleApiError(e, st, 'Attendance by subject load');
+      rethrow;
+    }
   }
 
   void _parseLoginData() {
@@ -227,7 +253,7 @@ class AppState extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e, st) {
-      debugPrint('Profile load error: $e\n$st');
+      await _handleApiError(e, st, 'Profile load');
     } finally {
       isProfileLoading = false;
       notifyListeners();
@@ -280,7 +306,7 @@ class AppState extends ChangeNotifier {
 
       notifyListeners();
     } catch (e, st) {
-      debugPrint('Attendance load error: $e\n$st');
+      await _handleApiError(e, st, 'Attendance load');
     } finally {
       isAttendanceLoading = false;
       notifyListeners();
@@ -350,7 +376,7 @@ class AppState extends ChangeNotifier {
       schedule = _mergeConsecutiveEntries(entries);
       notifyListeners();
     } catch (e, st) {
-      debugPrint('Schedule load error: $e\n$st');
+      await _handleApiError(e, st, 'Schedule load');
     } finally {
       isScheduleLoading = false;
       notifyListeners();
@@ -424,7 +450,7 @@ class AppState extends ChangeNotifier {
         );
       }
     } catch (e, st) {
-      debugPrint('Latest external results load error: $e\n$st');
+      await _handleApiError(e, st, 'Latest external results load');
     } finally {
       isExternalResultsLoading = false;
       notifyListeners();
@@ -480,7 +506,12 @@ class AppState extends ChangeNotifier {
             );
             final parsed = _semesterResultFromApiData(data, session);
             return (parsed, data);
-          } catch (_) {
+          } catch (e, st) {
+            await _handleApiError(
+              e,
+              st,
+              'Full semester results load (sem ${session.semesterNo})',
+            );
             return (null, null);
           }
         }),
@@ -592,7 +623,7 @@ class AppState extends ChangeNotifier {
           .map((m) => InternalMark.fromJson(m as Map<String, dynamic>))
           .toList();
     } catch (e, st) {
-      debugPrint('Internal marks load error: $e\n$st');
+      await _handleApiError(e, st, 'Internal marks load');
     } finally {
       isInternalMarksLoading = false;
       notifyListeners();
