@@ -48,3 +48,8 @@ STUDENT_API.md
 
 # Local API config (copy from secrets.example.json)
 secrets.json
+
+android/key.properties
+android/app/upload-keystore.jks
+*.jks
+*.keystore
