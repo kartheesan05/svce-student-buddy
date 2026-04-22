@@ -24,13 +24,23 @@ class _LoginScreenState extends State<LoginScreen> {
     super.didChangeDependencies();
     if (!_credentialsLoaded) {
       _credentialsLoaded = true;
-      final prefs = AppStateScope.of(context).prefs;
-      if (prefs.rememberMe) {
-        _rememberMe = true;
-        _usernameController.text = prefs.savedUsername ?? '';
-        _passwordController.text = prefs.savedPassword ?? '';
-      }
+      _loadSavedCredentials();
     }
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    final prefs = AppStateScope.of(context).prefs;
+    if (!prefs.rememberMe) return;
+
+    final savedUsername = await prefs.getSavedUsername();
+    final savedPassword = await prefs.getSavedPassword();
+    if (!mounted) return;
+
+    setState(() {
+      _rememberMe = true;
+      _usernameController.text = savedUsername ?? '';
+      _passwordController.text = savedPassword ?? '';
+    });
   }
 
   @override

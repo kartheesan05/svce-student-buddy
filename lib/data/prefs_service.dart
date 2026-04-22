@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/theme_provider.dart';
 
@@ -14,38 +15,41 @@ class PrefsService {
 
   /// Server token lifetime — session is invalid after this from login time.
   static const Duration sessionMaxAge = Duration(minutes: 10);
+  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
 
   late final SharedPreferences _prefs;
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
+    await _migrateLegacySensitiveData();
   }
 
   // --- Credentials ---
 
   bool get rememberMe => _prefs.getBool(_keyRememberMe) ?? false;
 
-  String? get savedUsername => _prefs.getString(_keyUsername);
-  String? get savedPassword {
-    final encoded = _prefs.getString(_keyPassword);
-    if (encoded == null) return null;
-    try {
-      return utf8.decode(base64Decode(encoded));
-    } catch (_) {
-      return null;
-    }
+  Future<String?> getSavedUsername() async {
+    return _secureStorage.read(key: _keyUsername);
+  }
+
+  Future<String?> getSavedPassword() async {
+    return _secureStorage.read(key: _keyPassword);
   }
 
   Future<void> saveCredentials(String username, String password) async {
     await _prefs.setBool(_keyRememberMe, true);
-    await _prefs.setString(_keyUsername, username);
-    await _prefs.setString(_keyPassword, base64Encode(utf8.encode(password)));
+    await _secureStorage.write(key: _keyUsername, value: username);
+    await _secureStorage.write(key: _keyPassword, value: password);
   }
 
   Future<void> clearCredentials() async {
     await _prefs.setBool(_keyRememberMe, false);
     await _prefs.remove(_keyUsername);
     await _prefs.remove(_keyPassword);
+    await _secureStorage.delete(key: _keyUsername);
+    await _secureStorage.delete(key: _keyPassword);
   }
 
   // --- Theme ---
@@ -83,20 +87,23 @@ class PrefsService {
   // --- Persisted auth session (survives app restart until [sessionMaxAge]) ---
 
   Future<void> savePersistedSession(Map<String, dynamic> loginData) async {
-    await _prefs.setString(_keyPersistedSessionJson, jsonEncode(loginData));
+    await _secureStorage.write(
+      key: _keyPersistedSessionJson,
+      value: jsonEncode(loginData),
+    );
     await _prefs.setInt(
         _keySessionStartedMs, DateTime.now().millisecondsSinceEpoch);
   }
 
   Future<void> clearPersistedSession() async {
-    await _prefs.remove(_keyPersistedSessionJson);
+    await _secureStorage.delete(key: _keyPersistedSessionJson);
     await _prefs.remove(_keySessionStartedMs);
   }
 
   /// Returns login JSON if a session was saved and is still within [sessionMaxAge].
   /// Clears stored session if expired or invalid.
   Future<Map<String, dynamic>?> loadPersistedSessionIfValid() async {
-    final jsonStr = _prefs.getString(_keyPersistedSessionJson);
+    final jsonStr = await _secureStorage.read(key: _keyPersistedSessionJson);
     final ms = _prefs.getInt(_keySessionStartedMs);
     if (jsonStr == null || ms == null) return null;
 
@@ -112,5 +119,35 @@ class PrefsService {
     } catch (_) {}
     await clearPersistedSession();
     return null;
+  }
+
+  Future<void> _migrateLegacySensitiveData() async {
+    final oldUsername = _prefs.getString(_keyUsername);
+    final oldPasswordEncoded = _prefs.getString(_keyPassword);
+    final oldSessionJson = _prefs.getString(_keyPersistedSessionJson);
+
+    if (oldUsername != null &&
+        (await _secureStorage.read(key: _keyUsername)) == null) {
+      await _secureStorage.write(key: _keyUsername, value: oldUsername);
+    }
+
+    if (oldPasswordEncoded != null &&
+        (await _secureStorage.read(key: _keyPassword)) == null) {
+      try {
+        final decoded = utf8.decode(base64Decode(oldPasswordEncoded));
+        await _secureStorage.write(key: _keyPassword, value: decoded);
+      } catch (_) {
+        // Ignore malformed legacy value.
+      }
+    }
+
+    if (oldSessionJson != null &&
+        (await _secureStorage.read(key: _keyPersistedSessionJson)) == null) {
+      await _secureStorage.write(key: _keyPersistedSessionJson, value: oldSessionJson);
+    }
+
+    await _prefs.remove(_keyUsername);
+    await _prefs.remove(_keyPassword);
+    await _prefs.remove(_keyPersistedSessionJson);
   }
 }
