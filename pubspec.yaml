@@ -1,4 +1,4 @@
-name: diary
+name: student_buddy
 description: "A student companion app for university students."
 publish_to: 'none'
 version: 0.1.0
