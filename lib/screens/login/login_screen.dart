@@ -50,7 +50,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final appState = AppStateScope.of(context);
     final rawInput = _usernameController.text.trim();
-    final username = rawInput.replaceAll(RegExp(r'@svce\.ac\.in$', caseSensitive: false), '').trim();
+    final username = rawInput
+        .replaceAll(RegExp(r'@svce\.ac\.in$', caseSensitive: false), '')
+        .trim();
     final password = _passwordController.text;
     final result = await appState.login(username, password);
 
@@ -102,6 +104,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     color: colorScheme.onSurfaceVariant,
                   ),
                 ),
+                // const SizedBox(height: 6),
+                // Text(
+                //   'Test login: ${AppState.testLoginUsername} / ${AppState.testLoginPassword}',
+                //   style: theme.textTheme.bodySmall?.copyWith(
+                //     color: colorScheme.onSurfaceVariant,
+                //   ),
+                // ),
                 const SizedBox(height: 40),
                 TextFormField(
                   controller: _usernameController,
@@ -123,9 +132,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     labelText: 'Password',
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscurePassword
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined),
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                      ),
                       onPressed: () =>
                           setState(() => _obscurePassword = !_obscurePassword),
                     ),
@@ -150,8 +161,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(width: 8),
                     GestureDetector(
-                      onTap: () =>
-                          setState(() => _rememberMe = !_rememberMe),
+                      onTap: () => setState(() => _rememberMe = !_rememberMe),
                       child: Text(
                         'Remember me',
                         style: theme.textTheme.bodyMedium?.copyWith(
@@ -169,8 +179,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       padding: const EdgeInsets.all(12),
                       child: Row(
                         children: [
-                          Icon(Icons.error_outline,
-                              color: colorScheme.onErrorContainer, size: 20),
+                          Icon(
+                            Icons.error_outline,
+                            color: colorScheme.onErrorContainer,
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -194,9 +207,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ? const SizedBox(
                             height: 20,
                             width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Text('Sign In'),
                   ),

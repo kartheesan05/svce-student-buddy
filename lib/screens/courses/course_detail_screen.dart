@@ -63,13 +63,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     }
 
     try {
-      final api = AppStateScope.of(context).api;
-      final data = await api.getAttendanceBySubject(courseNo);
-      final list = data['AttendanceBySubject'] as List<dynamic>? ?? [];
-      final entries = list
-          .map((e) => AttendanceEntry.fromJson(e as Map<String, dynamic>))
-          .toList()
-        ..sort((a, b) => b.date.compareTo(a.date));
+      final appState = AppStateScope.of(context);
+      final entries = await appState.getAttendanceBySubject(courseNo);
 
       if (!mounted) return;
       setState(() {
