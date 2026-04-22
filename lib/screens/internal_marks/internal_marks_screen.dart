@@ -305,7 +305,7 @@ class _MarkSection extends StatelessWidget {
             children: entries
                 .map((e) => _MarkChipLabeled(
                       label: e.label,
-                      value: e.value,
+                      value: double.tryParse(e.value)?.floor().toString() ?? e.value,
                       color: accentColor,
                       theme: theme,
                       colorScheme: colorScheme,
