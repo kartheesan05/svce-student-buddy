@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../config/theme_provider.dart';
 import '../../data/app_state.dart';
@@ -11,6 +12,11 @@ Future<void> _openDeveloperSite() async {
   // Do not gate on canLaunchUrl: on Android 11+ it often returns false unless
   // AndroidManifest.xml declares VIEW + https queries; launchUrl still works.
   await launchUrl(uri, mode: LaunchMode.externalApplication);
+}
+
+Future<String> _loadAppVersionLabel() async {
+  final info = await PackageInfo.fromPlatform();
+  return 'App version ${info.version}';
 }
 
 class ProfileScreen extends StatelessWidget {
@@ -363,6 +369,20 @@ class ProfileScreen extends StatelessWidget {
                           ],
                         ),
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    FutureBuilder<String>(
+                      future: _loadAppVersionLabel(),
+                      builder: (context, snapshot) {
+                        final label = snapshot.data;
+                        if (label == null) return const SizedBox.shrink();
+                        return Text(
+                          label,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 32),
                   ],
