@@ -3,7 +3,7 @@ name: Android APK Release
 on:
   push:
     tags:
-      - "v*.*.*" # example: v0.1.0
+      - "v*.*.*"
   workflow_dispatch:
 
 permissions:
@@ -30,21 +30,22 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Flutter version
-        run: flutter --version
-
-      - name: Cache Flutter dependencies
+      - name: Cache Android CMake
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.pub-cache
-            build
-          key: ${{ runner.os }}-flutter-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-flutter-
+          path: /usr/local/lib/android/sdk/cmake
+          key: ${{ runner.os }}-cmake-3.22.1
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Install Android components
+        run: |
+          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses
+          $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "cmake;3.22.1"
+
+      - name: Disable Gradle file system watching
+        run: echo "org.gradle.vfs.watch=false" >> ~/.gradle/gradle.properties
 
       - name: Decode Android keystore
         run: |
@@ -59,24 +60,28 @@ jobs:
           storeFile=../upload-keystore.jks
           EOF
 
+      - name: Create secrets.json
+        run: |
+          cat > secrets.json <<'EOF'
+          ${{ secrets.APP_SECRETS_JSON }}
+          EOF
+
       - name: Build signed release APK
-        run: flutter build apk --release
+        run: flutter build apk --release --dart-define-from-file=secrets.json
 
-      - name: Verify APK exists
-        run: ls -lh build/app/outputs/flutter-apk/
-
-      - name: Compute APK filename from tag
+      - name: Compute APK filename
         id: vars
         run: |
-          VERSION="${GITHUB_REF_NAME}"   # e.g. v0.1.0
-          APK_NAME="student_buddy-${VERSION}.apk"
-          echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
+          VERSION="${GITHUB_REF_NAME:-manual}"
+          echo "apk_name=student_buddy-${VERSION}.apk" >> "$GITHUB_OUTPUT"
 
       - name: Rename APK
         run: |
-          cp build/app/outputs/flutter-apk/app-release.apk "build/app/outputs/flutter-apk/${{ steps.vars.outputs.apk_name }}"
+          cp build/app/outputs/flutter-apk/app-release.apk \
+            "build/app/outputs/flutter-apk/${{ steps.vars.outputs.apk_name }}"
 
       - name: Create GitHub Release and upload APK
+        if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
           files: build/app/outputs/flutter-apk/${{ steps.vars.outputs.apk_name }}
