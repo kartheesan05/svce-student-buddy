@@ -45,7 +45,9 @@ jobs:
           $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "cmake;3.22.1"
 
       - name: Disable Gradle file system watching
-        run: echo "org.gradle.vfs.watch=false" >> ~/.gradle/gradle.properties
+        run: |
+          mkdir -p "$HOME/.gradle"
+          echo "org.gradle.vfs.watch=false" >> "$HOME/.gradle/gradle.properties"
 
       - name: Decode Android keystore
         run: |
