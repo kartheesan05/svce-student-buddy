@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'app.dart';
 import 'config/theme_provider.dart';
@@ -13,6 +14,9 @@ void main() async {
   final themeProvider = ThemeProvider(prefs: prefs);
   final appState = AppState()..prefs = prefs;
   await appState.restoreSessionIfValid();
+  if (appState.isLoggedIn) {
+    unawaited(appState.refreshAllDataForStartup());
+  }
 
   runApp(
     ThemeProviderScope(

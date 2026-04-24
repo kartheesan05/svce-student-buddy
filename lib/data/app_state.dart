@@ -54,8 +54,14 @@ class AppState extends ChangeNotifier {
   bool _isMockSession = false;
   bool _isHandlingSessionExpiry = false;
   bool _isSilentRefresh = false;
+  bool _isStartupRefreshLoading = false;
+  bool _suppressSectionLoadersWithCachedData = false;
+  bool _hasRestoredSnapshotData = false;
+  Future<void>? _refreshAllDataInFlight;
   final Map<String, List<AttendanceEntry>> _mockAttendanceBySubject = {};
   final Map<String, List<AttendanceEntry>> _attendanceBySubjectCache = {};
+
+  bool get isStartupRefreshLoading => _isStartupRefreshLoading;
 
   void _notifyMaybe() {
     if (_isSilentRefresh) return;
@@ -96,6 +102,7 @@ class AppState extends ChangeNotifier {
       }
 
       _isMockSession = false;
+      _hasRestoredSnapshotData = false;
       _loginData = await api.login(username, password);
       isLoggedIn = true;
       _parseLoginData();
@@ -125,6 +132,7 @@ class AppState extends ChangeNotifier {
 
   void _loginWithMockData() {
     _isMockSession = true;
+    _hasRestoredSnapshotData = false;
     _loginData = null;
     isLoggedIn = true;
     error = null;
@@ -252,23 +260,54 @@ class AppState extends ChangeNotifier {
 
   /// Reloads profile, courses, schedule, latest CGPA, and internal marks from the API.
   /// Full semester lists for the Results screen are loaded via [loadFullSemesterResults].
-  Future<void> refreshAllData() async {
+  Future<void> refreshAllData({bool isStartup = false}) async {
     if (!isLoggedIn) return;
     if (_isMockSession) {
       notifyListeners();
       return;
     }
+
+    if (_refreshAllDataInFlight != null) {
+      await _refreshAllDataInFlight;
+      return;
+    }
+
+    final run = _performRefreshAllData(isStartup: isStartup);
+    _refreshAllDataInFlight = run;
+    try {
+      await run;
+    } finally {
+      _refreshAllDataInFlight = null;
+    }
+  }
+
+  Future<void> refreshAllDataForStartup() {
+    return refreshAllData(isStartup: true);
+  }
+
+  Future<void> _performRefreshAllData({required bool isStartup}) async {
     _isSilentRefresh = true;
     _attendanceBySubjectCache.clear();
+    _suppressSectionLoadersWithCachedData = isStartup && _hasRestoredSnapshotData;
+    if (isStartup) {
+      _isStartupRefreshLoading = true;
+      notifyListeners();
+    }
     try {
       await _reloadData();
     } finally {
       _isSilentRefresh = false;
+      _suppressSectionLoadersWithCachedData = false;
+      if (isStartup) {
+        _isStartupRefreshLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<void> _loadProfile() async {
-    isProfileLoading = true;
+    final hasCachedData = _hasRestoredSnapshotData && student != null;
+    isProfileLoading = !(_suppressSectionLoadersWithCachedData && hasCachedData);
     _notifyMaybe();
     try {
       final data = await api.getProfile();
@@ -285,7 +324,8 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _loadAttendance() async {
-    isAttendanceLoading = true;
+    final hasCachedData = _hasRestoredSnapshotData && courses.isNotEmpty;
+    isAttendanceLoading = !(_suppressSectionLoadersWithCachedData && hasCachedData);
     _notifyMaybe();
     try {
       final data = await api.getAttendance();
@@ -338,7 +378,8 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _loadSchedule() async {
-    isScheduleLoading = true;
+    final hasCachedData = _hasRestoredSnapshotData && schedule.isNotEmpty;
+    isScheduleLoading = !(_suppressSectionLoadersWithCachedData && hasCachedData);
     _notifyMaybe();
     try {
       final data = await api.getSchedule();
@@ -446,7 +487,9 @@ class AppState extends ChangeNotifier {
   /// One request for the highest [semesterNo] in [ExternalSession] — updates [student] CGPA.
   /// Clears [semesterResults]; use [loadFullSemesterResults] on the Results screen.
   Future<void> _loadLatestExternalCgpa() async {
-    isExternalResultsLoading = true;
+    final hasCachedData = _hasRestoredSnapshotData && student?.cgpa != null;
+    isExternalResultsLoading =
+        !(_suppressSectionLoadersWithCachedData && hasCachedData);
     _notifyMaybe();
 
     try {
@@ -634,7 +677,9 @@ class AppState extends ChangeNotifier {
 
   Future<void> _loadInternalMarks() async {
     try {
-      isInternalMarksLoading = true;
+      final hasCachedData = _hasRestoredSnapshotData && internalMarks.isNotEmpty;
+      isInternalMarksLoading =
+          !(_suppressSectionLoadersWithCachedData && hasCachedData);
       _notifyMaybe();
 
       final session = api.sessionNo;
@@ -667,6 +712,7 @@ class AppState extends ChangeNotifier {
     error = null;
 
     final snapshot = await prefs.loadAppSnapshot();
+    _hasRestoredSnapshotData = snapshot != null;
     _hydrateFromSnapshot(snapshot);
     notifyListeners();
   }
@@ -688,6 +734,10 @@ class AppState extends ChangeNotifier {
     isInternalMarksLoading = false;
     _loginData = null;
     _mockAttendanceBySubject.clear();
+    _hasRestoredSnapshotData = false;
+    _isStartupRefreshLoading = false;
+    _suppressSectionLoadersWithCachedData = false;
+    _refreshAllDataInFlight = null;
     _externalSessions = [];
     api.uaNo = null;
     api.uaType = null;
