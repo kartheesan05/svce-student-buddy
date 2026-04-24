@@ -23,6 +23,15 @@ String _userVisibleNetworkError(Object error) {
   return s;
 }
 
+bool _isLikelyNetworkIssue(Object error) {
+  final s = error.toString();
+  return s.contains('Failed host lookup') ||
+      s.contains('SocketException') ||
+      s.contains('ClientException') ||
+      s.contains('Network is unreachable') ||
+      s.contains('Connection timed out');
+}
+
 class AppState extends ChangeNotifier {
   static const String testLoginUsername = '2023cs0000';
   static const String testLoginPassword = 'password';
@@ -60,6 +69,7 @@ class AppState extends ChangeNotifier {
   bool _sessionRefreshTriggeredDuringReload = false;
   Future<void>? _refreshAllDataInFlight;
   String? _pendingToastMessage;
+  DateTime? _lastNetworkToastAt;
   final Map<String, List<AttendanceEntry>> _mockAttendanceBySubject = {};
   final Map<String, List<AttendanceEntry>> _attendanceBySubjectCache = {};
 
@@ -81,6 +91,7 @@ class AppState extends ChangeNotifier {
     String context,
   ) async {
     debugPrint('$context error: $error\n$stackTrace');
+    _maybeQueueNetworkIssueToast(error);
     if (_isHandlingSessionExpiry) return;
     if (error is! ApiException || !error.message.contains('Session expired')) {
       return;
@@ -95,6 +106,20 @@ class AppState extends ChangeNotifier {
     } finally {
       _isHandlingSessionExpiry = false;
     }
+  }
+
+  void _maybeQueueNetworkIssueToast(Object error) {
+    if (!_isLikelyNetworkIssue(error)) return;
+    final now = DateTime.now();
+    final lastShownAt = _lastNetworkToastAt;
+    if (lastShownAt != null &&
+        now.difference(lastShownAt) < const Duration(seconds: 6)) {
+      return;
+    }
+    _lastNetworkToastAt = now;
+    _queueToast(
+      "Can't reach the server. Check your internet connection and try again.",
+    );
   }
 
   Future<String?> login(String username, String password) async {
@@ -766,8 +791,10 @@ class AppState extends ChangeNotifier {
       if (_isInvalidCredentialError(e.message)) {
         _queueToast('Session is invalid. Please log out and log in again.');
       }
+      _maybeQueueNetworkIssueToast(e);
       return false;
-    } catch (_) {
+    } catch (e) {
+      _maybeQueueNetworkIssueToast(e);
       return false;
     }
   }
