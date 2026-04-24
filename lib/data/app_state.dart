@@ -53,7 +53,14 @@ class AppState extends ChangeNotifier {
   Future<void>? _fullSemesterResultsInFlight;
   bool _isMockSession = false;
   bool _isHandlingSessionExpiry = false;
+  bool _isSilentRefresh = false;
   final Map<String, List<AttendanceEntry>> _mockAttendanceBySubject = {};
+  final Map<String, List<AttendanceEntry>> _attendanceBySubjectCache = {};
+
+  void _notifyMaybe() {
+    if (_isSilentRefresh) return;
+    notifyListeners();
+  }
 
   Future<void> _handleApiError(
     Object error,
@@ -173,6 +180,11 @@ class AppState extends ChangeNotifier {
       return List<AttendanceEntry>.from(entries)
         ..sort((a, b) => b.date.compareTo(a.date));
     }
+    final cached = _attendanceBySubjectCache[courseNo];
+    if (cached != null) {
+      return List<AttendanceEntry>.from(cached)
+        ..sort((a, b) => b.date.compareTo(a.date));
+    }
     try {
       final data = await api.getAttendanceBySubject(courseNo);
       final list = data['AttendanceBySubject'] as List<dynamic>? ?? [];
@@ -181,6 +193,8 @@ class AppState extends ChangeNotifier {
               .map((e) => AttendanceEntry.fromJson(e as Map<String, dynamic>))
               .toList()
             ..sort((a, b) => b.date.compareTo(a.date));
+      _attendanceBySubjectCache[courseNo] = List<AttendanceEntry>.from(entries);
+      await _persistAppSnapshot();
       return entries;
     } catch (e, st) {
       await _handleApiError(e, st, 'Attendance by subject load');
@@ -244,29 +258,35 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    await _reloadData();
+    _isSilentRefresh = true;
+    _attendanceBySubjectCache.clear();
+    try {
+      await _reloadData();
+    } finally {
+      _isSilentRefresh = false;
+    }
   }
 
   Future<void> _loadProfile() async {
     isProfileLoading = true;
-    notifyListeners();
+    _notifyMaybe();
     try {
       final data = await api.getProfile();
       if (student != null) {
         student = Student.fromProfileResponse(data, base: student!);
-        notifyListeners();
+        _notifyMaybe();
       }
     } catch (e, st) {
       await _handleApiError(e, st, 'Profile load');
     } finally {
       isProfileLoading = false;
-      notifyListeners();
+      _notifyMaybe();
     }
   }
 
   Future<void> _loadAttendance() async {
     isAttendanceLoading = true;
-    notifyListeners();
+    _notifyMaybe();
     try {
       final data = await api.getAttendance();
       final details = data['AttendanceDetails'] as List<dynamic>? ?? [];
@@ -308,18 +328,18 @@ class AppState extends ChangeNotifier {
         );
       }).toList();
 
-      notifyListeners();
+      _notifyMaybe();
     } catch (e, st) {
       await _handleApiError(e, st, 'Attendance load');
     } finally {
       isAttendanceLoading = false;
-      notifyListeners();
+      _notifyMaybe();
     }
   }
 
   Future<void> _loadSchedule() async {
     isScheduleLoading = true;
-    notifyListeners();
+    _notifyMaybe();
     try {
       final data = await api.getSchedule();
       final tables = data['ClassTables'] as List<dynamic>?;
@@ -378,12 +398,12 @@ class AppState extends ChangeNotifier {
       }
 
       schedule = _mergeConsecutiveEntries(entries);
-      notifyListeners();
+      _notifyMaybe();
     } catch (e, st) {
       await _handleApiError(e, st, 'Schedule load');
     } finally {
       isScheduleLoading = false;
-      notifyListeners();
+      _notifyMaybe();
     }
   }
 
@@ -427,8 +447,7 @@ class AppState extends ChangeNotifier {
   /// Clears [semesterResults]; use [loadFullSemesterResults] on the Results screen.
   Future<void> _loadLatestExternalCgpa() async {
     isExternalResultsLoading = true;
-    semesterResults = [];
-    notifyListeners();
+    _notifyMaybe();
 
     try {
       if (_externalSessions.isEmpty) {
@@ -457,7 +476,7 @@ class AppState extends ChangeNotifier {
       await _handleApiError(e, st, 'Latest external results load');
     } finally {
       isExternalResultsLoading = false;
-      notifyListeners();
+      _notifyMaybe();
     }
   }
 
@@ -494,7 +513,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> _performFullSemesterResultsLoad() async {
     isSemesterResultsListLoading = true;
-    notifyListeners();
+    _notifyMaybe();
 
     final results = <SemesterResult>[];
     double? latestCgpa;
@@ -548,7 +567,7 @@ class AppState extends ChangeNotifier {
       await _persistAppSnapshot();
     } finally {
       isSemesterResultsListLoading = false;
-      notifyListeners();
+      _notifyMaybe();
     }
   }
 
@@ -616,7 +635,7 @@ class AppState extends ChangeNotifier {
   Future<void> _loadInternalMarks() async {
     try {
       isInternalMarksLoading = true;
-      notifyListeners();
+      _notifyMaybe();
 
       final session = api.sessionNo;
       final semester = api.semesterNo;
@@ -631,7 +650,7 @@ class AppState extends ChangeNotifier {
       await _handleApiError(e, st, 'Internal marks load');
     } finally {
       isInternalMarksLoading = false;
-      notifyListeners();
+      _notifyMaybe();
     }
   }
 
@@ -660,6 +679,7 @@ class AppState extends ChangeNotifier {
     schedule = [];
     semesterResults = [];
     internalMarks = [];
+    _attendanceBySubjectCache.clear();
     isExternalResultsLoading = false;
     isSemesterResultsListLoading = false;
     isProfileLoading = false;
@@ -698,6 +718,12 @@ class AppState extends ChangeNotifier {
       'schedule': schedule.map(_scheduleEntryToJson).toList(),
       'semesterResults': semesterResults.map(_semesterResultToJson).toList(),
       'internalMarks': internalMarks.map(_internalMarkToJson).toList(),
+      'attendanceBySubject': _attendanceBySubjectCache.map(
+        (courseNo, entries) => MapEntry(
+          courseNo,
+          entries.map(_attendanceEntryToJson).toList(),
+        ),
+      ),
     };
   }
 
@@ -709,6 +735,7 @@ class AppState extends ChangeNotifier {
       final rawSchedule = snapshot['schedule'];
       final rawSemesterResults = snapshot['semesterResults'];
       final rawInternalMarks = snapshot['internalMarks'];
+      final rawAttendanceBySubject = snapshot['attendanceBySubject'];
 
       if (rawStudent is Map<String, dynamic>) {
         final parsedStudent = _studentFromJson(rawStudent);
@@ -739,6 +766,21 @@ class AppState extends ChangeNotifier {
             .whereType<Map<String, dynamic>>()
             .map(_internalMarkFromJson)
             .toList();
+      }
+      if (rawAttendanceBySubject is Map) {
+        _attendanceBySubjectCache.clear();
+        for (final entry in rawAttendanceBySubject.entries) {
+          final courseNo = entry.key.toString();
+          final value = entry.value;
+          if (value is List) {
+            final parsed = value
+                .whereType<Map<String, dynamic>>()
+                .map(_attendanceEntryFromJson)
+                .toList()
+              ..sort((a, b) => b.date.compareTo(a.date));
+            _attendanceBySubjectCache[courseNo] = parsed;
+          }
+        }
       }
     } catch (e, st) {
       debugPrint('Hydrate app snapshot error: $e\n$st');
@@ -957,6 +999,29 @@ class AppState extends ChangeNotifier {
       asign2: json['asign2'] as String? ?? '-',
       asign3: json['asign3'] as String? ?? '-',
       modelExam: json['modelExam'] as String? ?? '-',
+    );
+  }
+
+  static Map<String, dynamic> _attendanceEntryToJson(AttendanceEntry entry) {
+    return {
+      'dateMs': entry.date.millisecondsSinceEpoch,
+      'period': entry.period,
+      'status': entry.status.name,
+    };
+  }
+
+  static AttendanceEntry _attendanceEntryFromJson(Map<String, dynamic> json) {
+    final statusName = json['status'] as String? ?? AttendanceStatus.present.name;
+    final status = AttendanceStatus.values.firstWhere(
+      (value) => value.name == statusName,
+      orElse: () => AttendanceStatus.present,
+    );
+    return AttendanceEntry(
+      date: DateTime.fromMillisecondsSinceEpoch(
+        (json['dateMs'] as num?)?.toInt() ?? 0,
+      ),
+      period: json['period'] as String? ?? '',
+      status: status,
     );
   }
 
