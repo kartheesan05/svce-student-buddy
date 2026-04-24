@@ -30,7 +30,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _loadSavedCredentials() async {
     final prefs = AppStateScope.of(context).prefs;
-    if (!prefs.rememberMe) return;
+    if (!prefs.rememberMe) {
+      if (!mounted) return;
+      setState(() => _rememberMe = false);
+      return;
+    }
 
     final savedUsername = await prefs.getSavedUsername();
     final savedPassword = await prefs.getSavedPassword();
@@ -72,11 +76,8 @@ class _LoginScreenState extends State<LoginScreen> {
     if (result != null) {
       setState(() => _error = result);
     } else {
-      if (_rememberMe) {
-        await appState.prefs.saveCredentials(rawInput, password);
-      } else {
-        await appState.prefs.clearCredentials();
-      }
+      await appState.prefs.saveCredentials(rawInput, password);
+      await appState.prefs.setRememberMe(_rememberMe);
     }
   }
 

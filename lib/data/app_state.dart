@@ -57,11 +57,18 @@ class AppState extends ChangeNotifier {
   bool _isStartupRefreshLoading = false;
   bool _suppressSectionLoadersWithCachedData = false;
   bool _hasRestoredSnapshotData = false;
+  bool _sessionRefreshTriggeredDuringReload = false;
   Future<void>? _refreshAllDataInFlight;
+  String? _pendingToastMessage;
   final Map<String, List<AttendanceEntry>> _mockAttendanceBySubject = {};
   final Map<String, List<AttendanceEntry>> _attendanceBySubjectCache = {};
 
   bool get isStartupRefreshLoading => _isStartupRefreshLoading;
+  String? consumeToastMessage() {
+    final message = _pendingToastMessage;
+    _pendingToastMessage = null;
+    return message;
+  }
 
   void _notifyMaybe() {
     if (_isSilentRefresh) return;
@@ -80,9 +87,11 @@ class AppState extends ChangeNotifier {
     }
     _isHandlingSessionExpiry = true;
     this.error = error.message;
-    notifyListeners();
     try {
-      await logout();
+      final refreshed = await _tryRefreshSessionWithStoredCredentials();
+      if (refreshed) {
+        _sessionRefreshTriggeredDuringReload = true;
+      }
     } finally {
       _isHandlingSessionExpiry = false;
     }
@@ -239,17 +248,26 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _reloadData() async {
+    _sessionRefreshTriggeredDuringReload = false;
     try {
-      await Future.wait([
-        _loadProfile(),
-        _loadAttendance(),
-        _loadSchedule(),
-        _loadLatestExternalCgpa(),
-        _loadInternalMarks(),
-      ]);
+      await _runDataLoaders();
+      if (_sessionRefreshTriggeredDuringReload) {
+        _sessionRefreshTriggeredDuringReload = false;
+        await _runDataLoaders();
+      }
       await _persistAppSnapshot();
     } catch (_) {}
     notifyListeners();
+  }
+
+  Future<void> _runDataLoaders() async {
+    await Future.wait([
+      _loadProfile(),
+      _loadAttendance(),
+      _loadSchedule(),
+      _loadLatestExternalCgpa(),
+      _loadInternalMarks(),
+    ]);
   }
 
   Future<void> _loadAllData() async {
@@ -700,9 +718,22 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> restoreSessionIfValid() async {
-    final data = await prefs.loadPersistedSessionIfValid();
-    if (data == null) return;
+    final state = await prefs.loadPersistedSessionState();
+    if (state == null) return;
 
+    _applyRestoredSession(state.loginData);
+
+    final snapshot = await prefs.loadAppSnapshot();
+    _hasRestoredSnapshotData = snapshot != null;
+    _hydrateFromSnapshot(snapshot);
+    notifyListeners();
+
+    if (state.isExpired) {
+      await _tryRefreshSessionWithStoredCredentials();
+    }
+  }
+
+  void _applyRestoredSession(Map<String, dynamic> data) {
     _isMockSession = false;
     _loginData = data;
     api.applyLoginResponse(data);
@@ -710,10 +741,55 @@ class AppState extends ChangeNotifier {
     isLoggedIn = true;
     isLoading = false;
     error = null;
+  }
 
-    final snapshot = await prefs.loadAppSnapshot();
-    _hasRestoredSnapshotData = snapshot != null;
-    _hydrateFromSnapshot(snapshot);
+  Future<bool> _tryRefreshSessionWithStoredCredentials() async {
+    final savedUsername = await prefs.getSavedUsername();
+    final savedPassword = await prefs.getSavedPassword();
+    if (savedUsername == null ||
+        savedUsername.trim().isEmpty ||
+        savedPassword == null ||
+        savedPassword.isEmpty) {
+      return false;
+    }
+
+    try {
+      final refreshedLogin = await api.login(
+        _normalizeUsername(savedUsername),
+        savedPassword,
+      );
+      _applyRestoredSession(refreshedLogin);
+      await prefs.savePersistedSession(refreshedLogin);
+      notifyListeners();
+      return true;
+    } on ApiException catch (e) {
+      if (_isInvalidCredentialError(e.message)) {
+        _queueToast('Session is invalid. Please log out and log in again.');
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  String _normalizeUsername(String value) {
+    return value
+        .trim()
+        .replaceAll(RegExp(r'@svce\.ac\.in$', caseSensitive: false), '')
+        .trim();
+  }
+
+  bool _isInvalidCredentialError(String message) {
+    final lower = message.toLowerCase();
+    return lower.contains('invalid username') ||
+        lower.contains('invalid password') ||
+        lower.contains('invalid credentials') ||
+        lower.contains('invalid login') ||
+        lower.contains('wrong password');
+  }
+
+  void _queueToast(String message) {
+    _pendingToastMessage = message;
     notifyListeners();
   }
 
@@ -737,7 +813,9 @@ class AppState extends ChangeNotifier {
     _hasRestoredSnapshotData = false;
     _isStartupRefreshLoading = false;
     _suppressSectionLoadersWithCachedData = false;
+    _sessionRefreshTriggeredDuringReload = false;
     _refreshAllDataInFlight = null;
+    _pendingToastMessage = null;
     _externalSessions = [];
     api.uaNo = null;
     api.uaType = null;

@@ -31,6 +31,10 @@ class PrefsService {
 
   bool get rememberMe => _prefs.getBool(_keyRememberMe) ?? false;
 
+  Future<void> setRememberMe(bool value) async {
+    await _prefs.setBool(_keyRememberMe, value);
+  }
+
   Future<String?> getSavedUsername() async {
     return _secureStorage.read(key: _keyUsername);
   }
@@ -40,7 +44,6 @@ class PrefsService {
   }
 
   Future<void> saveCredentials(String username, String password) async {
-    await _prefs.setBool(_keyRememberMe, true);
     await _secureStorage.write(key: _keyUsername, value: username);
     await _secureStorage.write(key: _keyPassword, value: password);
   }
@@ -126,19 +129,28 @@ class PrefsService {
   /// Returns login JSON if a session was saved and is still within [sessionMaxAge].
   /// Clears stored session if expired or invalid.
   Future<Map<String, dynamic>?> loadPersistedSessionIfValid() async {
+    final state = await loadPersistedSessionState();
+    if (state == null || state.isExpired) {
+      return null;
+    }
+    return state.loginData;
+  }
+
+  /// Returns persisted session details, including expiry state.
+  /// Clears persisted session if payload is malformed.
+  Future<PersistedSessionState?> loadPersistedSessionState() async {
     final jsonStr = await _secureStorage.read(key: _keyPersistedSessionJson);
     final ms = _prefs.getInt(_keySessionStartedMs);
     if (jsonStr == null || ms == null) return null;
 
     final started = DateTime.fromMillisecondsSinceEpoch(ms);
-    if (DateTime.now().difference(started) > sessionMaxAge) {
-      await clearPersistedSession();
-      return null;
-    }
+    final isExpired = DateTime.now().difference(started) > sessionMaxAge;
 
     try {
       final decoded = jsonDecode(jsonStr);
-      if (decoded is Map<String, dynamic>) return decoded;
+      if (decoded is Map<String, dynamic>) {
+        return PersistedSessionState(loginData: decoded, isExpired: isExpired);
+      }
     } catch (_) {}
     await clearPersistedSession();
     return null;
@@ -173,4 +185,14 @@ class PrefsService {
     await _prefs.remove(_keyPassword);
     await _prefs.remove(_keyPersistedSessionJson);
   }
+}
+
+class PersistedSessionState {
+  final Map<String, dynamic> loginData;
+  final bool isExpired;
+
+  const PersistedSessionState({
+    required this.loginData,
+    required this.isExpired,
+  });
 }
