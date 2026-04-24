@@ -11,6 +11,7 @@ class PrefsService {
   static const _keyThemeMode = 'theme_mode';
   static const _keyThemeSource = 'theme_source';
   static const _keyPersistedSessionJson = 'persisted_session_json';
+  static const _keyAppSnapshotJson = 'app_snapshot_json';
   static const _keySessionStartedMs = 'session_started_ms';
 
   /// Server token lifetime — session is invalid after this from login time.
@@ -98,6 +99,28 @@ class PrefsService {
   Future<void> clearPersistedSession() async {
     await _secureStorage.delete(key: _keyPersistedSessionJson);
     await _prefs.remove(_keySessionStartedMs);
+  }
+
+  Future<void> saveAppSnapshot(Map<String, dynamic> snapshot) async {
+    await _secureStorage.write(
+      key: _keyAppSnapshotJson,
+      value: jsonEncode(snapshot),
+    );
+  }
+
+  Future<Map<String, dynamic>?> loadAppSnapshot() async {
+    final jsonStr = await _secureStorage.read(key: _keyAppSnapshotJson);
+    if (jsonStr == null) return null;
+    try {
+      final decoded = jsonDecode(jsonStr);
+      if (decoded is Map<String, dynamic>) return decoded;
+    } catch (_) {}
+    await clearAppSnapshot();
+    return null;
+  }
+
+  Future<void> clearAppSnapshot() async {
+    await _secureStorage.delete(key: _keyAppSnapshotJson);
   }
 
   /// Returns login JSON if a session was saved and is still within [sessionMaxAge].
