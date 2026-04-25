@@ -53,7 +53,7 @@ class _ScheduleScreenState extends State<ScheduleScreen>
     if (allSchedule.isEmpty) {
       return Scaffold(
         body: RefreshIndicator(
-          onRefresh: () => appState.refreshAllData(),
+          onRefresh: () => appState.getHomeData(),
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
@@ -91,7 +91,7 @@ class _ScheduleScreenState extends State<ScheduleScreen>
 
     return Scaffold(
       body: RefreshIndicator(
-        onRefresh: () => appState.refreshAllData(),
+        onRefresh: () => appState.getHomeData(),
         child: NestedScrollView(
         headerSliverBuilder: (context, _) => [
           SliverAppBar.large(

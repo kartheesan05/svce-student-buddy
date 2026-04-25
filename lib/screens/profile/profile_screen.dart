@@ -32,7 +32,7 @@ class ProfileScreen extends StatelessWidget {
     if (student == null) {
       return Scaffold(
         body: RefreshIndicator(
-          onRefresh: () => appState.refreshAllData(),
+          onRefresh: () => appState.getHomeData(),
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
@@ -55,7 +55,7 @@ class ProfileScreen extends StatelessWidget {
 
     return Scaffold(
       body: RefreshIndicator(
-        onRefresh: () => appState.refreshAllData(),
+        onRefresh: () => appState.getHomeData(),
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [

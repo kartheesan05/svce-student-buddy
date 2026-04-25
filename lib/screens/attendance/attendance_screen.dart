@@ -34,7 +34,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
     return Scaffold(
       body: RefreshIndicator(
-        onRefresh: () => appState.refreshAllData(),
+        onRefresh: () => appState.getHomeData(),
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [

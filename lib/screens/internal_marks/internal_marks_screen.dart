@@ -15,7 +15,7 @@ class InternalMarksScreen extends StatelessWidget {
 
     return Scaffold(
       body: RefreshIndicator(
-        onRefresh: () => appState.refreshAllData(),
+        onRefresh: () => appState.getHomeData(),
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [

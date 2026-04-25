@@ -38,7 +38,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
 
   Future<void> _onRefresh() async {
     final appState = AppStateScope.of(context);
-    await appState.refreshAllData();
+    await appState.getHomeData();
     if (!mounted) return;
     final no = _course.courseNo;
     if (no != null && no.isNotEmpty) {

@@ -36,19 +36,8 @@ Future<void> _handleApiErrorImpl(
 ) async {
   debugPrint('$context error: $error\n$stackTrace');
   state._maybeQueueNetworkIssueToast(error);
-  if (state._isHandlingSessionExpiry) return;
-  if (error is! ApiException || !error.message.toLowerCase().contains('session expired')) {
-    return;
-  }
-  state._isHandlingSessionExpiry = true;
-  state.error = error.message;
-  try {
-    final refreshed = await state._tryRefreshSessionWithStoredCredentials();
-    if (refreshed) {
-      state._sessionRefreshTriggeredDuringReload = true;
-    }
-  } finally {
-    state._isHandlingSessionExpiry = false;
+  if (error is ApiException) {
+    state.error = error.message;
   }
 }
 

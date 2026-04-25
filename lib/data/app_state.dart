@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'api_service.dart';
+import 'diary_data_repository.dart';
 import 'app_state_snapshot_codec.dart';
 import 'app_state_utils.dart';
 import 'models/attendance_entry.dart';
@@ -22,7 +23,14 @@ class AppState extends ChangeNotifier {
   static const String testLoginPassword = 'password';
 
   final ApiService api = ApiService();
-  late final PrefsService prefs;
+  late PrefsService _prefs;
+  late DiaryDataRepository repository;
+
+  PrefsService get prefs => _prefs;
+  set prefs(PrefsService value) {
+    _prefs = value;
+    repository = DiaryDataRepository(api: api, prefs: value);
+  }
 
   Student? student;
   List<Course> courses = [];
@@ -43,15 +51,12 @@ class AppState extends ChangeNotifier {
   String? error;
 
   Map<String, dynamic>? _loginData;
-  List<_SessionInfo> _externalSessions = [];
   Future<void>? _fullSemesterResultsInFlight;
   bool _isMockSession = false;
-  bool _isHandlingSessionExpiry = false;
   bool _isSilentRefresh = false;
   bool _isStartupRefreshLoading = false;
   bool _suppressSectionLoadersWithCachedData = false;
   bool _hasRestoredSnapshotData = false;
-  bool _sessionRefreshTriggeredDuringReload = false;
   Future<void>? _refreshAllDataInFlight;
   String? _pendingToastMessage;
   DateTime? _lastNetworkToastAt;
@@ -101,7 +106,6 @@ class AppState extends ChangeNotifier {
     _loginData = null;
     isLoggedIn = true;
     error = null;
-    _externalSessions = [];
     _fullSemesterResultsInFlight = null;
 
     student = mockStudent();
@@ -133,13 +137,7 @@ class AppState extends ChangeNotifier {
         ..sort((a, b) => b.date.compareTo(a.date));
     }
     try {
-      final data = await api.getAttendanceBySubject(courseNo);
-      final list = data['AttendanceBySubject'] as List<dynamic>? ?? [];
-      final entries =
-          list
-              .map((e) => AttendanceEntry.fromJson(e as Map<String, dynamic>))
-              .toList()
-            ..sort((a, b) => b.date.compareTo(a.date));
+      final entries = await repository.getAttendanceBySubject(courseNo);
       _attendanceBySubjectCache[courseNo] = List<AttendanceEntry>.from(entries);
       await _persistAppSnapshot();
       return entries;
@@ -161,37 +159,18 @@ class AppState extends ChangeNotifier {
       currentSemester:
           int.tryParse(userInfo['SemesterNo']?.toString() ?? '') ?? 0,
     );
-
-    final extSessions = data['ExternalSession'] as List<dynamic>? ?? [];
-    _externalSessions =
-        extSessions
-            .map(
-              (s) => _SessionInfo(
-                sessionNo: int.tryParse(s['SessionNo']?.toString() ?? '') ?? 0,
-                semesterNo:
-                    int.tryParse(s['SemesterNo']?.toString() ?? '') ?? 0,
-                sessionName: s['SessionName'] as String? ?? '',
-              ),
-            )
-            .toList()
-          ..sort((a, b) => a.semesterNo.compareTo(b.semesterNo));
   }
 
   Future<void> _reloadData() async {
     return _reloadDataImpl(this);
   }
 
-  Future<void> _runDataLoaders() async {
-    return _runDataLoadersImpl(this);
-  }
-
   Future<void> _loadAllData() async {
     return _loadAllDataImpl(this);
   }
 
-  /// Reloads profile, courses, schedule, latest CGPA, and internal marks from the API.
-  /// Full semester lists for the Results screen are loaded via [loadFullSemesterResults].
-  Future<void> refreshAllData({bool isStartup = false}) async {
+  /// Reloads all data required by the home/dashboard experience.
+  Future<void> getHomeData({bool isStartup = false}) async {
     if (!isLoggedIn) return;
     if (_isMockSession) {
       notifyListeners();
@@ -213,49 +192,20 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> refreshAllDataForStartup() {
-    return refreshAllData(isStartup: true);
+    return getHomeData(isStartup: true);
   }
 
   Future<void> _performRefreshAllData({required bool isStartup}) async {
     return _performRefreshAllDataImpl(this, isStartup: isStartup);
   }
 
-  Future<void> _loadProfile() async {
-    return _loadProfileImpl(this);
-  }
-
-  Future<void> _loadAttendance() async {
-    return _loadAttendanceImpl(this);
-  }
-
-  Future<void> _loadSchedule() async {
-    return _loadScheduleImpl(this);
-  }
-
-  /// One request for the highest [semesterNo] in [ExternalSession] — updates [student] CGPA.
-  /// Clears [semesterResults]; use [loadFullSemesterResults] on the Results screen.
-  Future<void> _loadLatestExternalCgpa() async {
-    return _loadLatestExternalCgpaImpl(this);
-  }
-
-  /// Fetches every semester in [ExternalSession] for the Results screen and SGPA trend chart.
-  Future<void> loadFullSemesterResults() async {
+  /// Fetches every semester result for the Results screen and SGPA trend chart.
+  Future<void> getSemResults() async {
     return _loadFullSemesterResultsImpl(this);
   }
 
   Future<void> _performFullSemesterResultsLoad() async {
     return _performFullSemesterResultsLoadImpl(this);
-  }
-
-  SemesterResult? _semesterResultFromApiData(
-    Map<String, dynamic> data,
-    _SessionInfo session,
-  ) {
-    return _semesterResultFromApiDataImpl(this, data, session);
-  }
-
-  Future<void> _loadInternalMarks() async {
-    return _loadInternalMarksImpl(this);
   }
 
   Future<void> restoreSessionIfValid() async {
@@ -279,14 +229,6 @@ class AppState extends ChangeNotifier {
     _applyRestoredSessionImpl(this, data);
   }
 
-  Future<bool> _tryRefreshSessionWithStoredCredentials() async {
-    return _tryRefreshSessionWithStoredCredentialsImpl(this);
-  }
-
-  String _normalizeUsername(String value) {
-    return _normalizeUsernameImpl(this, value);
-  }
-
   void _queueToast(String message) {
     _queueToastImpl(this, message);
   }
@@ -307,18 +249,6 @@ class AppState extends ChangeNotifier {
     _hydrateFromSnapshotImpl(this, snapshot);
   }
 
-}
-
-class _SessionInfo {
-  final int sessionNo;
-  final int semesterNo;
-  final String sessionName;
-
-  _SessionInfo({
-    required this.sessionNo,
-    required this.semesterNo,
-    required this.sessionName,
-  });
 }
 
 class AppStateScope extends InheritedNotifier<AppState> {

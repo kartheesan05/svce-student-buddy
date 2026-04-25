@@ -20,6 +20,7 @@ Future<String?> _loginImpl(
     state._isMockSession = false;
     state._hasRestoredSnapshotData = false;
     state._loginData = await state.api.login(username, password);
+    state.repository.applyLoginData(state._loginData!);
     state.isLoggedIn = true;
     state._parseLoginData();
     await state.prefs.savePersistedSession(state._loginData!);
@@ -44,47 +45,11 @@ Future<String?> _loginImpl(
 void _applyRestoredSessionImpl(AppState state, Map<String, dynamic> data) {
   state._isMockSession = false;
   state._loginData = data;
-  state.api.applyLoginResponse(data);
+  state.repository.applyLoginData(data);
   state._parseLoginData();
   state.isLoggedIn = true;
   state.isLoading = false;
   state.error = null;
-}
-
-Future<bool> _tryRefreshSessionWithStoredCredentialsImpl(AppState state) async {
-  final savedUsername = await state.prefs.getSavedUsername();
-  final savedPassword = await state.prefs.getSavedPassword();
-  if (savedUsername == null ||
-      savedUsername.trim().isEmpty ||
-      savedPassword == null ||
-      savedPassword.isEmpty) {
-    return false;
-  }
-
-  try {
-    final refreshedLogin = await state.api.login(
-      state._normalizeUsername(savedUsername),
-      savedPassword,
-    );
-    state._applyRestoredSession(refreshedLogin);
-    await state.prefs.savePersistedSession(refreshedLogin);
-    state._notifyDirect();
-    return true;
-  } on ApiException catch (e) {
-    state._queueToast("Session expired, cannot refresh. Please logout and login again.");
-    state._maybeQueueNetworkIssueToast(e);
-    return false;
-  } catch (e) {
-    state._maybeQueueNetworkIssueToast(e);
-    return false;
-  }
-}
-
-String _normalizeUsernameImpl(AppState state, String value) {
-  return value
-      .trim()
-      .replaceAll(RegExp(r'@svce\.ac\.in$', caseSensitive: false), '')
-      .trim();
 }
 
 Future<void> _logoutImpl(AppState state) async {
@@ -107,10 +72,8 @@ Future<void> _logoutImpl(AppState state) async {
   state._hasRestoredSnapshotData = false;
   state._isStartupRefreshLoading = false;
   state._suppressSectionLoadersWithCachedData = false;
-  state._sessionRefreshTriggeredDuringReload = false;
   state._refreshAllDataInFlight = null;
   state._pendingToastMessage = null;
-  state._externalSessions = [];
   state.api.uaNo = null;
   state.api.uaType = null;
   state.api.token = null;
@@ -118,6 +81,7 @@ Future<void> _logoutImpl(AppState state) async {
   state.api.regNo = null;
   state.api.sessionNo = null;
   state.api.semesterNo = null;
+  state.repository.clearSession();
   if (!state.prefs.rememberMe) {
     await state.prefs.clearCredentials();
   }

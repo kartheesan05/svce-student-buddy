@@ -21,15 +21,15 @@ class _ResultsScreenState extends State<ResultsScreen> {
       final appState = AppStateScope.of(context);
       if (appState.semesterResults.isEmpty &&
           !appState.isSemesterResultsListLoading) {
-        appState.loadFullSemesterResults();
+        appState.getSemResults();
       }
     });
   }
 
   Future<void> _onRefresh() async {
     final appState = AppStateScope.of(context);
-    await appState.refreshAllData();
-    await appState.loadFullSemesterResults();
+    await appState.getHomeData();
+    await appState.getSemResults();
   }
 
   @override

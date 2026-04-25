@@ -60,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       body: RefreshIndicator(
         key: _refreshIndicatorKey,
-        onRefresh: () => appState.refreshAllData(),
+        onRefresh: () => appState.getHomeData(),
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
