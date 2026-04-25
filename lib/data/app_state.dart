@@ -822,6 +822,9 @@ class AppState extends ChangeNotifier {
     api.regNo = null;
     api.sessionNo = null;
     api.semesterNo = null;
+    if (!prefs.rememberMe) {
+      await prefs.clearCredentials();
+    }
     await prefs.clearPersistedSession();
     await prefs.clearAppSnapshot();
     notifyListeners();
