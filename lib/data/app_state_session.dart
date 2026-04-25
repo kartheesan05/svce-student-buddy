@@ -19,6 +19,7 @@ Future<String?> _loginImpl(
 
     state._isMockSession = false;
     state._hasRestoredSnapshotData = false;
+    state._restoredSessionWasExpired = false;
     state._loginData = await state.api.login(username, password);
     state.isLoggedIn = true;
     state._parseLoginData();
@@ -43,6 +44,7 @@ Future<String?> _loginImpl(
 
 void _applyRestoredSessionImpl(AppState state, Map<String, dynamic> data) {
   state._isMockSession = false;
+  state._restoredSessionWasExpired = false;
   state._loginData = data;
   state.api.applyLoginResponse(data);
   state._parseLoginData();
@@ -89,6 +91,7 @@ String _normalizeUsernameImpl(AppState state, String value) {
 
 Future<void> _logoutImpl(AppState state) async {
   state._isMockSession = false;
+  state._restoredSessionWasExpired = false;
   state.isLoggedIn = false;
   state.student = null;
   state.courses = [];

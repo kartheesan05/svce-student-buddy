@@ -14,9 +14,6 @@ void main() async {
   final themeProvider = ThemeProvider(prefs: prefs);
   final appState = AppState()..prefs = prefs;
   await appState.restoreSessionIfValid();
-  if (appState.isLoggedIn) {
-    unawaited(appState.refreshAllDataForStartup());
-  }
 
   runApp(
     ThemeProviderScope(
@@ -27,4 +24,8 @@ void main() async {
       ),
     ),
   );
+
+  if (appState.isLoggedIn) {
+    unawaited(appState.runStartupSyncInBackground());
+  }
 }

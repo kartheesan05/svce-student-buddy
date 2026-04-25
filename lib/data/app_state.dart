@@ -52,6 +52,7 @@ class AppState extends ChangeNotifier {
   bool _suppressSectionLoadersWithCachedData = false;
   bool _hasRestoredSnapshotData = false;
   bool _sessionRefreshTriggeredDuringReload = false;
+  bool _restoredSessionWasExpired = false;
   Future<void>? _refreshAllDataInFlight;
   String? _pendingToastMessage;
   DateTime? _lastNetworkToastAt;
@@ -97,6 +98,7 @@ class AppState extends ChangeNotifier {
 
   void _loginWithMockData() {
     _isMockSession = true;
+    _restoredSessionWasExpired = false;
     _hasRestoredSnapshotData = false;
     _loginData = null;
     isLoggedIn = true;
@@ -263,15 +265,20 @@ class AppState extends ChangeNotifier {
     if (state == null) return;
 
     _applyRestoredSession(state.loginData);
+    _restoredSessionWasExpired = state.isExpired;
 
     final snapshot = await prefs.loadAppSnapshot();
     _hasRestoredSnapshotData = snapshot != null;
     _hydrateFromSnapshot(snapshot);
     notifyListeners();
+  }
 
-    if (state.isExpired) {
+  Future<void> runStartupSyncInBackground() async {
+    if (!isLoggedIn || _isMockSession) return;
+    if (_restoredSessionWasExpired) {
       await _tryRefreshSessionWithStoredCredentials();
     }
+    await refreshAllDataForStartup();
   }
 
   void _applyRestoredSession(Map<String, dynamic> data) {
