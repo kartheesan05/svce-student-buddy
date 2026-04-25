@@ -53,6 +53,13 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   }
 
   Future<void> _fetchAttendance() async {
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
+
     final courseNo = _course.courseNo;
     if (courseNo == null || courseNo.isEmpty) {
       setState(() {
@@ -70,6 +77,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       setState(() {
         _entries = entries;
         _loading = false;
+        _error = null;
       });
     } catch (e) {
       if (!mounted) return;

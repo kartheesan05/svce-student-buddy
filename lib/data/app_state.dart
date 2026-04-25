@@ -25,6 +25,13 @@ String _userVisibleNetworkError(Object error) {
 }
 
 bool _isLikelyNetworkIssue(Object error) {
+  if (error is ApiException) {
+    final message = error.message.toLowerCase();
+    if (message.contains("can't reach the server") ||
+        message.contains('check your internet connection')) {
+      return true;
+    }
+  }
   final s = error.toString();
   return s.contains('Failed host lookup') ||
       s.contains('SocketException') ||
