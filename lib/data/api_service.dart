@@ -66,10 +66,11 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> login(String username, String password) async {
+    final formattedUsername = username.trim().toLowerCase().replaceAll(RegExp(r'@svce\.ac\.in$', caseSensitive: false), '');
     final response = await _safePost(
       Uri.parse('$_baseUrl/initial/auth'),
       headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: {'username': username.toLowerCase(), 'password': password},
+      body: {'username': formattedUsername, 'password': password},
     );
 
     Map<String, dynamic>? data;
