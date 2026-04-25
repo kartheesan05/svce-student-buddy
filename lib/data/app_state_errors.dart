@@ -37,7 +37,7 @@ Future<void> _handleApiErrorImpl(
   debugPrint('$context error: $error\n$stackTrace');
   state._maybeQueueNetworkIssueToast(error);
   if (state._isHandlingSessionExpiry) return;
-  if (error is! ApiException || !error.message.contains('Session expired')) {
+  if (error is! ApiException || !error.message.toLowerCase().contains('session expired')) {
     return;
   }
   state._isHandlingSessionExpiry = true;

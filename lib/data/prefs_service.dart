@@ -12,10 +12,6 @@ class PrefsService {
   static const _keyThemeSource = 'theme_source';
   static const _keyPersistedSessionJson = 'persisted_session_json';
   static const _keyAppSnapshotJson = 'app_snapshot_json';
-  static const _keySessionStartedMs = 'session_started_ms';
-
-  /// Server token lifetime — session is invalid after this from login time.
-  static const Duration sessionMaxAge = Duration(minutes: 10);
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
   );
@@ -88,20 +84,17 @@ class PrefsService {
     await _prefs.setString(_keyThemeSource, source.name);
   }
 
-  // --- Persisted auth session (survives app restart until [sessionMaxAge]) ---
+  // --- Persisted auth session ---
 
   Future<void> savePersistedSession(Map<String, dynamic> loginData) async {
     await _secureStorage.write(
       key: _keyPersistedSessionJson,
       value: jsonEncode(loginData),
     );
-    await _prefs.setInt(
-        _keySessionStartedMs, DateTime.now().millisecondsSinceEpoch);
   }
 
   Future<void> clearPersistedSession() async {
     await _secureStorage.delete(key: _keyPersistedSessionJson);
-    await _prefs.remove(_keySessionStartedMs);
   }
 
   Future<void> saveAppSnapshot(Map<String, dynamic> snapshot) async {
@@ -126,30 +119,16 @@ class PrefsService {
     await _secureStorage.delete(key: _keyAppSnapshotJson);
   }
 
-  /// Returns login JSON if a session was saved and is still within [sessionMaxAge].
-  /// Clears stored session if expired or invalid.
-  Future<Map<String, dynamic>?> loadPersistedSessionIfValid() async {
-    final state = await loadPersistedSessionState();
-    if (state == null || state.isExpired) {
-      return null;
-    }
-    return state.loginData;
-  }
-
-  /// Returns persisted session details, including expiry state.
+  /// Returns persisted login payload.
   /// Clears persisted session if payload is malformed.
-  Future<PersistedSessionState?> loadPersistedSessionState() async {
+  Future<Map<String, dynamic>?> loadPersistedSession() async {
     final jsonStr = await _secureStorage.read(key: _keyPersistedSessionJson);
-    final ms = _prefs.getInt(_keySessionStartedMs);
-    if (jsonStr == null || ms == null) return null;
-
-    final started = DateTime.fromMillisecondsSinceEpoch(ms);
-    final isExpired = DateTime.now().difference(started) > sessionMaxAge;
+    if (jsonStr == null) return null;
 
     try {
       final decoded = jsonDecode(jsonStr);
       if (decoded is Map<String, dynamic>) {
-        return PersistedSessionState(loginData: decoded, isExpired: isExpired);
+        return decoded;
       }
     } catch (_) {}
     await clearPersistedSession();
@@ -184,15 +163,6 @@ class PrefsService {
     await _prefs.remove(_keyUsername);
     await _prefs.remove(_keyPassword);
     await _prefs.remove(_keyPersistedSessionJson);
+    await _prefs.remove('session_started_ms');
   }
-}
-
-class PersistedSessionState {
-  final Map<String, dynamic> loginData;
-  final bool isExpired;
-
-  const PersistedSessionState({
-    required this.loginData,
-    required this.isExpired,
-  });
 }
