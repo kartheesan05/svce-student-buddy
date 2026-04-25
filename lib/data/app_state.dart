@@ -763,9 +763,7 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       return true;
     } on ApiException catch (e) {
-      if (_isInvalidCredentialError(e.message)) {
-        _queueToast('Session is invalid. Please log out and log in again.');
-      }
+      _queueToast("Session expired, cannot refresh. Please logout and login again.");
       _maybeQueueNetworkIssueToast(e);
       return false;
     } catch (e) {
@@ -779,15 +777,6 @@ class AppState extends ChangeNotifier {
         .trim()
         .replaceAll(RegExp(r'@svce\.ac\.in$', caseSensitive: false), '')
         .trim();
-  }
-
-  bool _isInvalidCredentialError(String message) {
-    final lower = message.toLowerCase();
-    return lower.contains('invalid username') ||
-        lower.contains('invalid password') ||
-        lower.contains('invalid credentials') ||
-        lower.contains('invalid login') ||
-        lower.contains('wrong password');
   }
 
   void _queueToast(String message) {
