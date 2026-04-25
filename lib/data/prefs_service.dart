@@ -29,7 +29,7 @@ class PrefsService {
 
   // --- Credentials ---
 
-  bool get rememberMe => _prefs.getBool(_keyRememberMe) ?? false;
+  bool get rememberMe => _prefs.getBool(_keyRememberMe) ?? true;
 
   Future<void> setRememberMe(bool value) async {
     await _prefs.setBool(_keyRememberMe, value);
