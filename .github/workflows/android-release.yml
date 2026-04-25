@@ -75,7 +75,7 @@ jobs:
         id: vars
         run: |
           VERSION="${GITHUB_REF_NAME:-manual}"
-          echo "apk_name=student_buddy-${VERSION}.apk" >> "$GITHUB_OUTPUT"
+          echo "apk_name=student-buddy-${VERSION}.apk" >> "$GITHUB_OUTPUT"
 
       - name: Rename APK
         run: |
@@ -88,3 +88,26 @@ jobs:
         with:
           files: build/app/outputs/flutter-apk/${{ steps.vars.outputs.apk_name }}
           generate_release_notes: true
+
+      - name: Upload APK (versioned)
+        run: |
+          aws s3 cp \
+            "build/app/outputs/flutter-apk/${{ steps.vars.outputs.apk_name }}" \
+            "s3://${{ secrets.R2_BUCKET_NAME }}/${{ steps.vars.outputs.apk_name }}" \
+            --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" \
+            --region auto
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+      - name: Upload APK (latest)
+        run: |
+          aws s3 cp \
+            "build/app/outputs/flutter-apk/${{ steps.vars.outputs.apk_name }}" \
+            "s3://${{ secrets.R2_BUCKET_NAME }}/student-buddy-latest.apk" \
+            --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" \
+            --region auto \
+            --cache-control "no-cache"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
