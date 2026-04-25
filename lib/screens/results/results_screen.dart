@@ -18,7 +18,11 @@ class _ResultsScreenState extends State<ResultsScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      AppStateScope.of(context).loadFullSemesterResults();
+      final appState = AppStateScope.of(context);
+      if (appState.semesterResults.isEmpty &&
+          !appState.isSemesterResultsListLoading) {
+        appState.loadFullSemesterResults();
+      }
     });
   }
 

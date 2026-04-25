@@ -1,20 +1,31 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 
 class ApiService {
   /// Set at build time: `flutter run --dart-define=API_DOMAIN=host.example.com`
   /// or `--dart-define-from-file=secrets.json` (copy secrets.example.json).
   static const String _apiDomain = String.fromEnvironment('API_DOMAIN');
+  static const String _networkErrorMessage =
+      "Can't reach the server. Check your internet connection and try again.";
+  static const Duration _requestTimeout = Duration(seconds: 20);
 
   static String get _baseUrl {
-    final host = _apiDomain.trim();
-    if (host.isEmpty) {
+    final raw = _apiDomain.trim();
+    if (raw.isEmpty) {
       throw StateError(
         'API_DOMAIN is not set. Pass --dart-define=API_DOMAIN=<host> when building, '
         'or use --dart-define-from-file=secrets.json.',
       );
     }
-    return '$host/api/v2';
+    final withScheme = raw.startsWith('http://') || raw.startsWith('https://')
+        ? raw
+        : 'https://$raw';
+    final normalized = withScheme.endsWith('/')
+        ? withScheme.substring(0, withScheme.length - 1)
+        : withScheme;
+    return '$normalized/api/v2';
   }
 
   String? uaNo;
@@ -36,7 +47,7 @@ class ApiService {
     String path,
     Map<String, String> body,
   ) async {
-    final response = await http.post(
+    final response = await _safePost(
       Uri.parse('$_baseUrl/$path'),
       headers: _authHeaders,
       body: body,
@@ -55,10 +66,11 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> login(String username, String password) async {
-    final response = await http.post(
+    final formattedUsername = username.trim().toLowerCase().replaceAll(RegExp(r'@svce\.ac\.in$', caseSensitive: false), '');
+    final response = await _safePost(
       Uri.parse('$_baseUrl/initial/auth'),
       headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: {'username': username, 'password': password},
+      body: {'username': formattedUsername, 'password': password},
     );
 
     Map<String, dynamic>? data;
@@ -161,6 +173,24 @@ class ApiService {
     if (value is int) return value;
     if (value is String) return int.tryParse(value);
     return null;
+  }
+
+  Future<http.Response> _safePost(
+    Uri uri, {
+    required Map<String, String> headers,
+    required Map<String, String> body,
+  }) async {
+    try {
+      return await http
+          .post(uri, headers: headers, body: body)
+          .timeout(_requestTimeout);
+    } on SocketException {
+      throw ApiException(_networkErrorMessage);
+    } on TimeoutException {
+      throw ApiException(_networkErrorMessage);
+    } on http.ClientException {
+      throw ApiException(_networkErrorMessage);
+    }
   }
 }
 

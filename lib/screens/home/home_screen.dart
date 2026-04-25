@@ -12,7 +12,7 @@ import '../courses/course_detail_screen.dart';
 import '../results/results_screen.dart';
 import '../schedule/schedule_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   final VoidCallback onViewAttendance;
   final VoidCallback onViewInternalMarks;
   final VoidCallback onViewProfile;
@@ -25,6 +25,15 @@ class HomeScreen extends StatelessWidget {
   });
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey =
+      GlobalKey<RefreshIndicatorState>();
+  bool _startupRefreshIndicatorShown = false;
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -34,11 +43,23 @@ class HomeScreen extends StatelessWidget {
     final todayClasses = _getTodayClasses(appState);
     final isScheduleLoading = appState.isScheduleLoading;
     final isAttendanceLoading = appState.isAttendanceLoading;
+    final isStartupRefreshLoading = appState.isStartupRefreshLoading;
+
+    if (isStartupRefreshLoading && !_startupRefreshIndicatorShown) {
+      _startupRefreshIndicatorShown = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _refreshIndicatorKey.currentState?.show();
+      });
+    } else if (!isStartupRefreshLoading && _startupRefreshIndicatorShown) {
+      _startupRefreshIndicatorShown = false;
+    }
 
     final overallAttendance = _calculateOverallAttendance(courses);
 
     return Scaffold(
       body: RefreshIndicator(
+        key: _refreshIndicatorKey,
         onRefresh: () => appState.refreshAllData(),
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -142,7 +163,7 @@ class HomeScreen extends StatelessWidget {
                     _SectionHeader(
                       title: 'Attendance Overview',
                       actionLabel: 'View all',
-                      onAction: onViewAttendance,
+                      onAction: widget.onViewAttendance,
                       theme: theme,
                     ),
                     const SizedBox(height: 8),
@@ -152,7 +173,7 @@ class HomeScreen extends StatelessWidget {
                       isLoading: isAttendanceLoading,
                       colorScheme: colorScheme,
                       theme: theme,
-                      onTap: onViewAttendance,
+                      onTap: widget.onViewAttendance,
                     ),
                     const SizedBox(height: 20),
                     _SectionHeader(
@@ -174,8 +195,8 @@ class HomeScreen extends StatelessWidget {
                           builder: (_) => const ResultsScreen(),
                         ),
                       ),
-                      onCoursesTap: onViewAttendance,
-                      onSemesterTap: onViewProfile,
+                      onCoursesTap: widget.onViewAttendance,
+                      onSemesterTap: widget.onViewProfile,
                     ),
                     const SizedBox(height: 32),
                   ],

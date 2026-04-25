@@ -43,6 +43,16 @@ class DiaryApp extends StatelessWidget {
                 listenable: AppStateScope.of(context),
                 builder: (context, _) {
                   final appState = AppStateScope.of(context);
+                  final toastMessage = appState.consumeToastMessage();
+                  if (toastMessage != null) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (!context.mounted) return;
+                      final messenger = ScaffoldMessenger.maybeOf(context);
+                      messenger?.showSnackBar(
+                        SnackBar(content: Text(toastMessage)),
+                      );
+                    });
+                  }
                   if (appState.isLoggedIn) {
                     return const NavigationShell();
                   }

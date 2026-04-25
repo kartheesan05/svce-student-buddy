@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'app.dart';
 import 'config/theme_provider.dart';
@@ -23,4 +24,8 @@ void main() async {
       ),
     ),
   );
+
+  if (appState.isLoggedIn) {
+    unawaited(appState.runStartupSyncInBackground());
+  }
 }
