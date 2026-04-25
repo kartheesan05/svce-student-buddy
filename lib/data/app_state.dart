@@ -1,8 +1,7 @@
-import 'dart:convert';
-import 'dart:typed_data';
-
 import 'package:flutter/widgets.dart';
 import 'api_service.dart';
+import 'app_state_snapshot_codec.dart';
+import 'app_state_utils.dart';
 import 'models/attendance_entry.dart';
 import 'models/course.dart';
 import 'models/internal_mark.dart';
@@ -11,6 +10,8 @@ import 'models/semester_result.dart';
 import 'models/student.dart';
 import 'mock_data.dart';
 import 'prefs_service.dart';
+
+part 'app_state_loaders.dart';
 
 String _userVisibleNetworkError(Object error) {
   final s = error.toString();
@@ -90,6 +91,10 @@ class AppState extends ChangeNotifier {
 
   void _notifyMaybe() {
     if (_isSilentRefresh) return;
+    notifyListeners();
+  }
+
+  void _notifyDirect() {
     notifyListeners();
   }
 
@@ -232,7 +237,7 @@ class AppState extends ChangeNotifier {
 
     student = Student(
       id: userInfo['RegNo'] as String? ?? '',
-      name: _titleCase(userInfo['UserName'] as String? ?? ''),
+      name: AppStateUtils.titleCase(userInfo['UserName'] as String? ?? ''),
       department: userInfo['BranchName'] as String? ?? '',
       programme: userInfo['DegreeName'] as String? ?? '',
       currentSemester:
@@ -255,32 +260,15 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _reloadData() async {
-    _sessionRefreshTriggeredDuringReload = false;
-    try {
-      await _runDataLoaders();
-      if (_sessionRefreshTriggeredDuringReload) {
-        _sessionRefreshTriggeredDuringReload = false;
-        await _runDataLoaders();
-      }
-      await _persistAppSnapshot();
-    } catch (_) {}
-    notifyListeners();
+    return _reloadDataImpl(this);
   }
 
   Future<void> _runDataLoaders() async {
-    await Future.wait([
-      _loadProfile(),
-      _loadAttendance(),
-      _loadSchedule(),
-      _loadLatestExternalCgpa(),
-      _loadInternalMarks(),
-    ]);
+    return _runDataLoadersImpl(this);
   }
 
   Future<void> _loadAllData() async {
-    await _reloadData();
-    isLoading = false;
-    notifyListeners();
+    return _loadAllDataImpl(this);
   }
 
   /// Reloads profile, courses, schedule, latest CGPA, and internal marks from the API.
@@ -311,241 +299,25 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _performRefreshAllData({required bool isStartup}) async {
-    _isSilentRefresh = true;
-    _attendanceBySubjectCache.clear();
-    _suppressSectionLoadersWithCachedData = isStartup && _hasRestoredSnapshotData;
-    if (isStartup) {
-      _isStartupRefreshLoading = true;
-      notifyListeners();
-    }
-    try {
-      await _reloadData();
-    } finally {
-      _isSilentRefresh = false;
-      _suppressSectionLoadersWithCachedData = false;
-      if (isStartup) {
-        _isStartupRefreshLoading = false;
-        notifyListeners();
-      }
-    }
+    return _performRefreshAllDataImpl(this, isStartup: isStartup);
   }
 
   Future<void> _loadProfile() async {
-    final hasCachedData = _hasRestoredSnapshotData && student != null;
-    isProfileLoading = !(_suppressSectionLoadersWithCachedData && hasCachedData);
-    _notifyMaybe();
-    try {
-      final data = await api.getProfile();
-      if (student != null) {
-        student = Student.fromProfileResponse(data, base: student!);
-        _notifyMaybe();
-      }
-    } catch (e, st) {
-      await _handleApiError(e, st, 'Profile load');
-    } finally {
-      isProfileLoading = false;
-      _notifyMaybe();
-    }
+    return _loadProfileImpl(this);
   }
 
   Future<void> _loadAttendance() async {
-    final hasCachedData = _hasRestoredSnapshotData && courses.isNotEmpty;
-    isAttendanceLoading = !(_suppressSectionLoadersWithCachedData && hasCachedData);
-    _notifyMaybe();
-    try {
-      final data = await api.getAttendance();
-      final details = data['AttendanceDetails'] as List<dynamic>? ?? [];
-      final studentCourses =
-          _loginData?['StudentCourse'] as List<dynamic>? ?? [];
-
-      final courseMap = <String, Map<String, dynamic>>{};
-      for (final sc in studentCourses) {
-        final no = sc['CourseNo'] as String? ?? '';
-        courseMap[no] = sc as Map<String, dynamic>;
-      }
-
-      courses = details.map((att) {
-        final a = att as Map<String, dynamic>;
-        final courseNo = a['CourseNo'] as String? ?? '';
-        final sc = courseMap[courseNo];
-
-        final courseCode =
-            sc?['CourseCode'] as String? ??
-            _extractCode(a['Course_Name'] as String? ?? '');
-        final courseName =
-            sc?['CourseName'] as String? ??
-            _extractName(a['Course_Name'] as String? ?? '');
-
-        final type = _inferCourseType(
-          courseName,
-          courseCode,
-          sc?['SubId'] as String?,
-        );
-
-        return Course(
-          code: courseCode,
-          name: courseName,
-          instructor: _titleCase(a['UaName'] as String? ?? '-'),
-          totalClasses: (a['Total_Class'] as num?)?.toInt() ?? 0,
-          attendedClasses: (a['Present'] as num?)?.toInt() ?? 0,
-          type: type,
-          courseNo: courseNo,
-        );
-      }).toList();
-
-      _notifyMaybe();
-    } catch (e, st) {
-      await _handleApiError(e, st, 'Attendance load');
-    } finally {
-      isAttendanceLoading = false;
-      _notifyMaybe();
-    }
+    return _loadAttendanceImpl(this);
   }
 
   Future<void> _loadSchedule() async {
-    final hasCachedData = _hasRestoredSnapshotData && schedule.isNotEmpty;
-    isScheduleLoading = !(_suppressSectionLoadersWithCachedData && hasCachedData);
-    _notifyMaybe();
-    try {
-      final data = await api.getSchedule();
-      final tables = data['ClassTables'] as List<dynamic>?;
-      if (tables == null) return;
-
-      final entries = <ScheduleEntry>[];
-      for (final day in tables) {
-        final d = day as Map<String, dynamic>;
-        final dayName = d['Day'] as String? ?? '';
-        final dayOfWeek = _dayNameToNumber(dayName);
-        final details = d['Detail'] as List<dynamic>? ?? [];
-
-        for (final lecture in details) {
-          final l = lecture as Map<String, dynamic>;
-          final lectureTime = l['LectureTime'] as String? ?? '';
-
-          String courseName = '';
-          String courseCode = '';
-          String section = '';
-          final detailList = l['DetailList'] as List<dynamic>?;
-          if (detailList != null && detailList.isNotEmpty) {
-            final inner = detailList.first as List<dynamic>?;
-            if (inner != null) {
-              for (final kv in inner) {
-                final m = kv as Map<String, dynamic>;
-                final key = m['Key'] as String? ?? '';
-                final value = m['Value'] as String? ?? '';
-                if (key == 'Course Name') courseName = value;
-                if (key == 'Course Code') courseCode = value;
-                if (key == 'Section') section = value;
-              }
-            }
-          }
-
-          if (courseName.isEmpty || courseName == '-') continue;
-
-          // Format: "08:30 AM-09:20 AM" — split on the dash between the two times
-          final timeMatch = RegExp(
-            r'(.+\s*[AP]M)\s*-\s*(.+\s*[AP]M)',
-          ).firstMatch(lectureTime);
-          final startTime = timeMatch?.group(1)?.trim() ?? '';
-          final endTime = timeMatch?.group(2)?.trim() ?? '';
-
-          entries.add(
-            ScheduleEntry(
-              courseCode: courseCode,
-              courseName: courseName,
-              instructor: '',
-              room: section.isNotEmpty ? 'Sec $section' : '',
-              startTime: startTime,
-              endTime: endTime,
-              dayOfWeek: dayOfWeek,
-            ),
-          );
-        }
-      }
-
-      schedule = _mergeConsecutiveEntries(entries);
-      _notifyMaybe();
-    } catch (e, st) {
-      await _handleApiError(e, st, 'Schedule load');
-    } finally {
-      isScheduleLoading = false;
-      _notifyMaybe();
-    }
-  }
-
-  /// Merge consecutive periods on the same day for the same course into one entry.
-  static List<ScheduleEntry> _mergeConsecutiveEntries(
-    List<ScheduleEntry> entries,
-  ) {
-    if (entries.isEmpty) return entries;
-
-    final byDay = <int, List<ScheduleEntry>>{};
-    for (final e in entries) {
-      byDay.putIfAbsent(e.dayOfWeek, () => []).add(e);
-    }
-
-    final merged = <ScheduleEntry>[];
-    for (final dayEntries in byDay.values) {
-      ScheduleEntry? current;
-      for (final entry in dayEntries) {
-        if (current != null && current.courseCode == entry.courseCode) {
-          current = ScheduleEntry(
-            courseCode: current.courseCode,
-            courseName: current.courseName,
-            instructor: current.instructor,
-            room: current.room,
-            startTime: current.startTime,
-            endTime: entry.endTime,
-            dayOfWeek: current.dayOfWeek,
-          );
-        } else {
-          if (current != null) merged.add(current);
-          current = entry;
-        }
-      }
-      if (current != null) merged.add(current);
-    }
-
-    return merged;
+    return _loadScheduleImpl(this);
   }
 
   /// One request for the highest [semesterNo] in [ExternalSession] — updates [student] CGPA.
   /// Clears [semesterResults]; use [loadFullSemesterResults] on the Results screen.
   Future<void> _loadLatestExternalCgpa() async {
-    final hasCachedData = _hasRestoredSnapshotData && student?.cgpa != null;
-    isExternalResultsLoading =
-        !(_suppressSectionLoadersWithCachedData && hasCachedData);
-    _notifyMaybe();
-
-    try {
-      if (_externalSessions.isEmpty) {
-        return;
-      }
-
-      final latest = _externalSessions.last;
-      final data = await api.getExternalResults(
-        latest.sessionNo,
-        latest.semesterNo,
-      );
-
-      final parsed = _semesterResultFromApiData(data, latest);
-      if (parsed != null && student != null) {
-        final extResult =
-            data['extStudentResult'] as Map<String, dynamic>? ?? {};
-        final cumulativeCredits = double.tryParse(
-          extResult['CUMMULATIVE_CREDITS']?.toString() ?? '',
-        )?.toInt();
-        student = student!.copyWith(
-          cgpa: parsed.cgpa,
-          totalCreditsEarned: cumulativeCredits,
-        );
-      }
-    } catch (e, st) {
-      await _handleApiError(e, st, 'Latest external results load');
-    } finally {
-      isExternalResultsLoading = false;
-      _notifyMaybe();
-    }
+    return _loadLatestExternalCgpaImpl(this);
   }
 
   /// Fetches every semester in [ExternalSession] for the Results screen and SGPA trend chart.
@@ -701,27 +473,7 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _loadInternalMarks() async {
-    try {
-      final hasCachedData = _hasRestoredSnapshotData && internalMarks.isNotEmpty;
-      isInternalMarksLoading =
-          !(_suppressSectionLoadersWithCachedData && hasCachedData);
-      _notifyMaybe();
-
-      final session = api.sessionNo;
-      final semester = api.semesterNo;
-      if (session == null || semester == null) return;
-
-      final data = await api.getInternalMarks(session, semester);
-      final marks = data['InternalMarks'] as List<dynamic>? ?? [];
-      internalMarks = marks
-          .map((m) => InternalMark.fromJson(m as Map<String, dynamic>))
-          .toList();
-    } catch (e, st) {
-      await _handleApiError(e, st, 'Internal marks load');
-    } finally {
-      isInternalMarksLoading = false;
-      _notifyMaybe();
-    }
+    return _loadInternalMarksImpl(this);
   }
 
   Future<void> restoreSessionIfValid() async {
@@ -842,15 +594,19 @@ class AppState extends ChangeNotifier {
   Map<String, dynamic> _buildSnapshot() {
     return {
       'version': 1,
-      'student': _studentToJson(student),
-      'courses': courses.map(_courseToJson).toList(),
-      'schedule': schedule.map(_scheduleEntryToJson).toList(),
-      'semesterResults': semesterResults.map(_semesterResultToJson).toList(),
-      'internalMarks': internalMarks.map(_internalMarkToJson).toList(),
+      'student': AppStateSnapshotCodec.studentToJson(student),
+      'courses': courses.map(AppStateSnapshotCodec.courseToJson).toList(),
+      'schedule': schedule.map(AppStateSnapshotCodec.scheduleEntryToJson).toList(),
+      'semesterResults': semesterResults
+          .map(AppStateSnapshotCodec.semesterResultToJson)
+          .toList(),
+      'internalMarks': internalMarks
+          .map(AppStateSnapshotCodec.internalMarkToJson)
+          .toList(),
       'attendanceBySubject': _attendanceBySubjectCache.map(
         (courseNo, entries) => MapEntry(
           courseNo,
-          entries.map(_attendanceEntryToJson).toList(),
+          entries.map(AppStateSnapshotCodec.attendanceEntryToJson).toList(),
         ),
       ),
     };
@@ -867,7 +623,7 @@ class AppState extends ChangeNotifier {
       final rawAttendanceBySubject = snapshot['attendanceBySubject'];
 
       if (rawStudent is Map<String, dynamic>) {
-        final parsedStudent = _studentFromJson(rawStudent);
+        final parsedStudent = AppStateSnapshotCodec.studentFromJson(rawStudent);
         if (parsedStudent != null) {
           student = parsedStudent;
         }
@@ -875,25 +631,25 @@ class AppState extends ChangeNotifier {
       if (rawCourses is List) {
         courses = rawCourses
             .whereType<Map<String, dynamic>>()
-            .map(_courseFromJson)
+            .map(AppStateSnapshotCodec.courseFromJson)
             .toList();
       }
       if (rawSchedule is List) {
         schedule = rawSchedule
             .whereType<Map<String, dynamic>>()
-            .map(_scheduleEntryFromJson)
+            .map(AppStateSnapshotCodec.scheduleEntryFromJson)
             .toList();
       }
       if (rawSemesterResults is List) {
         semesterResults = rawSemesterResults
             .whereType<Map<String, dynamic>>()
-            .map(_semesterResultFromJson)
+            .map(AppStateSnapshotCodec.semesterResultFromJson)
             .toList();
       }
       if (rawInternalMarks is List) {
         internalMarks = rawInternalMarks
             .whereType<Map<String, dynamic>>()
-            .map(_internalMarkFromJson)
+            .map(AppStateSnapshotCodec.internalMarkFromJson)
             .toList();
       }
       if (rawAttendanceBySubject is Map) {
@@ -904,7 +660,7 @@ class AppState extends ChangeNotifier {
           if (value is List) {
             final parsed = value
                 .whereType<Map<String, dynamic>>()
-                .map(_attendanceEntryFromJson)
+                .map(AppStateSnapshotCodec.attendanceEntryFromJson)
                 .toList()
               ..sort((a, b) => b.date.compareTo(a.date));
             _attendanceBySubjectCache[courseNo] = parsed;
@@ -913,299 +669,6 @@ class AppState extends ChangeNotifier {
       }
     } catch (e, st) {
       debugPrint('Hydrate app snapshot error: $e\n$st');
-    }
-  }
-
-  static Map<String, dynamic>? _studentToJson(Student? value) {
-    if (value == null) return null;
-    return {
-      'id': value.id,
-      'name': value.name,
-      'email': value.email,
-      'phone': value.phone,
-      'department': value.department,
-      'programme': value.programme,
-      'currentSemester': value.currentSemester,
-      'enrollmentYear': value.enrollmentYear,
-      'cgpa': value.cgpa,
-      'totalCreditsEarned': value.totalCreditsEarned,
-      'avatarUrl': value.avatarUrl,
-      'photoBase64': value.photoBytes == null ? null : base64Encode(value.photoBytes!),
-      'enrollmentNo': value.enrollmentNo,
-      'degree': value.degree,
-      'fatherName': value.fatherName,
-      'motherName': value.motherName,
-      'gender': value.gender,
-      'dob': value.dob,
-      'bloodGroup': value.bloodGroup,
-      'category': value.category,
-      'address': value.address,
-      'city': value.city,
-      'state': value.state,
-      'postalCode': value.postalCode,
-      'transportRoute': value.transportRoute,
-      'boardingPoint': value.boardingPoint,
-    };
-  }
-
-  static Student? _studentFromJson(Map<String, dynamic> json) {
-    final id = json['id'] as String?;
-    final name = json['name'] as String?;
-    final department = json['department'] as String?;
-    final programme = json['programme'] as String?;
-    final currentSemester = (json['currentSemester'] as num?)?.toInt();
-    if (id == null ||
-        name == null ||
-        department == null ||
-        programme == null ||
-        currentSemester == null) {
-      return null;
-    }
-
-    Uint8List? photoBytes;
-    final photoBase64 = json['photoBase64'] as String?;
-    if (photoBase64 != null && photoBase64.isNotEmpty) {
-      try {
-        photoBytes = base64Decode(photoBase64);
-      } catch (_) {}
-    }
-
-    return Student(
-      id: id,
-      name: name,
-      email: json['email'] as String?,
-      phone: json['phone'] as String?,
-      department: department,
-      programme: programme,
-      currentSemester: currentSemester,
-      enrollmentYear: json['enrollmentYear'] as String?,
-      cgpa: (json['cgpa'] as num?)?.toDouble(),
-      totalCreditsEarned: (json['totalCreditsEarned'] as num?)?.toInt(),
-      avatarUrl: json['avatarUrl'] as String? ?? '',
-      photoBytes: photoBytes,
-      enrollmentNo: json['enrollmentNo'] as String?,
-      degree: json['degree'] as String?,
-      fatherName: json['fatherName'] as String?,
-      motherName: json['motherName'] as String?,
-      gender: json['gender'] as String?,
-      dob: json['dob'] as String?,
-      bloodGroup: json['bloodGroup'] as String?,
-      category: json['category'] as String?,
-      address: json['address'] as String?,
-      city: json['city'] as String?,
-      state: json['state'] as String?,
-      postalCode: json['postalCode'] as String?,
-      transportRoute: json['transportRoute'] as String?,
-      boardingPoint: json['boardingPoint'] as String?,
-    );
-  }
-
-  static Map<String, dynamic> _courseToJson(Course value) {
-    return {
-      'code': value.code,
-      'name': value.name,
-      'instructor': value.instructor,
-      'credits': value.credits,
-      'totalClasses': value.totalClasses,
-      'attendedClasses': value.attendedClasses,
-      'room': value.room,
-      'type': value.type.name,
-      'courseNo': value.courseNo,
-    };
-  }
-
-  static Course _courseFromJson(Map<String, dynamic> json) {
-    final typeName = json['type'] as String? ?? CourseType.theory.name;
-    final parsedType = CourseType.values.firstWhere(
-      (value) => value.name == typeName,
-      orElse: () => CourseType.theory,
-    );
-    return Course(
-      code: json['code'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      instructor: json['instructor'] as String? ?? '-',
-      credits: (json['credits'] as num?)?.toInt(),
-      totalClasses: (json['totalClasses'] as num?)?.toInt() ?? 0,
-      attendedClasses: (json['attendedClasses'] as num?)?.toInt() ?? 0,
-      room: json['room'] as String?,
-      type: parsedType,
-      courseNo: json['courseNo'] as String?,
-    );
-  }
-
-  static Map<String, dynamic> _scheduleEntryToJson(ScheduleEntry value) {
-    return {
-      'courseCode': value.courseCode,
-      'courseName': value.courseName,
-      'instructor': value.instructor,
-      'room': value.room,
-      'startTime': value.startTime,
-      'endTime': value.endTime,
-      'dayOfWeek': value.dayOfWeek,
-    };
-  }
-
-  static ScheduleEntry _scheduleEntryFromJson(Map<String, dynamic> json) {
-    return ScheduleEntry(
-      courseCode: json['courseCode'] as String? ?? '',
-      courseName: json['courseName'] as String? ?? '',
-      instructor: json['instructor'] as String? ?? '',
-      room: json['room'] as String? ?? '',
-      startTime: json['startTime'] as String? ?? '',
-      endTime: json['endTime'] as String? ?? '',
-      dayOfWeek: (json['dayOfWeek'] as num?)?.toInt() ?? 1,
-    );
-  }
-
-  static Map<String, dynamic> _semesterResultToJson(SemesterResult value) {
-    return {
-      'semester': value.semester,
-      'sgpa': value.sgpa,
-      'cgpa': value.cgpa,
-      'creditsEarned': value.creditsEarned,
-      'result': value.result,
-      'grades': value.grades
-          .map(
-            (grade) => {
-              'courseCode': grade.courseCode,
-              'courseName': grade.courseName,
-              'credits': grade.credits,
-              'grade': grade.grade,
-              'gradePoint': grade.gradePoint,
-            },
-          )
-          .toList(),
-    };
-  }
-
-  static SemesterResult _semesterResultFromJson(Map<String, dynamic> json) {
-    final grades = (json['grades'] as List<dynamic>? ?? const [])
-        .whereType<Map<String, dynamic>>()
-        .map(
-          (grade) => CourseGrade(
-            courseCode: grade['courseCode'] as String? ?? '',
-            courseName: grade['courseName'] as String? ?? '',
-            credits: (grade['credits'] as num?)?.toDouble() ?? 0,
-            grade: grade['grade'] as String? ?? '',
-            gradePoint: (grade['gradePoint'] as num?)?.toInt() ?? 0,
-          ),
-        )
-        .toList();
-    return SemesterResult(
-      semester: (json['semester'] as num?)?.toInt() ?? 0,
-      sgpa: (json['sgpa'] as num?)?.toDouble() ?? 0,
-      cgpa: (json['cgpa'] as num?)?.toDouble() ?? 0,
-      creditsEarned: (json['creditsEarned'] as num?)?.toDouble() ?? 0,
-      grades: grades,
-      result: json['result'] as String?,
-    );
-  }
-
-  static Map<String, dynamic> _internalMarkToJson(InternalMark value) {
-    return {
-      'courseName': value.courseName,
-      'courseCode': value.courseCode,
-      'isLab': value.isLab,
-      'cat1': value.cat1,
-      'cat2': value.cat2,
-      'cat3': value.cat3,
-      'asign1': value.asign1,
-      'asign2': value.asign2,
-      'asign3': value.asign3,
-      'modelExam': value.modelExam,
-    };
-  }
-
-  static InternalMark _internalMarkFromJson(Map<String, dynamic> json) {
-    return InternalMark(
-      courseName: json['courseName'] as String? ?? '',
-      courseCode: json['courseCode'] as String? ?? '',
-      isLab: json['isLab'] as bool? ?? false,
-      cat1: json['cat1'] as String? ?? '-',
-      cat2: json['cat2'] as String? ?? '-',
-      cat3: json['cat3'] as String? ?? '-',
-      asign1: json['asign1'] as String? ?? '-',
-      asign2: json['asign2'] as String? ?? '-',
-      asign3: json['asign3'] as String? ?? '-',
-      modelExam: json['modelExam'] as String? ?? '-',
-    );
-  }
-
-  static Map<String, dynamic> _attendanceEntryToJson(AttendanceEntry entry) {
-    return {
-      'dateMs': entry.date.millisecondsSinceEpoch,
-      'period': entry.period,
-      'status': entry.status.name,
-    };
-  }
-
-  static AttendanceEntry _attendanceEntryFromJson(Map<String, dynamic> json) {
-    final statusName = json['status'] as String? ?? AttendanceStatus.present.name;
-    final status = AttendanceStatus.values.firstWhere(
-      (value) => value.name == statusName,
-      orElse: () => AttendanceStatus.present,
-    );
-    return AttendanceEntry(
-      date: DateTime.fromMillisecondsSinceEpoch(
-        (json['dateMs'] as num?)?.toInt() ?? 0,
-      ),
-      period: json['period'] as String? ?? '',
-      status: status,
-    );
-  }
-
-  static String _extractCode(String combined) {
-    final parts = combined.split(' - ');
-    return parts.isNotEmpty ? parts[0].trim() : combined;
-  }
-
-  static String _extractName(String combined) {
-    final idx = combined.indexOf(' - ');
-    return idx >= 0 ? combined.substring(idx + 3).trim() : combined;
-  }
-
-  static String _titleCase(String text) {
-    return text
-        .trim()
-        .split(RegExp(r'\s+'))
-        .map((word) {
-          if (word.isEmpty) return word;
-          return word[0].toUpperCase() + word.substring(1).toLowerCase();
-        })
-        .join(' ');
-  }
-
-  static CourseType _inferCourseType(String name, String code, String? subId) {
-    final lower = name.toLowerCase();
-    if (subId == '2' || lower.contains('laboratory') || lower.contains('lab')) {
-      return CourseType.lab;
-    }
-    if (code.startsWith('OE') ||
-        code.startsWith('HS') ||
-        code.startsWith('VD')) {
-      return CourseType.elective;
-    }
-    return CourseType.theory;
-  }
-
-  static int _dayNameToNumber(String day) {
-    switch (day.toLowerCase()) {
-      case 'monday':
-        return 1;
-      case 'tuesday':
-        return 2;
-      case 'wednesday':
-        return 3;
-      case 'thursday':
-        return 4;
-      case 'friday':
-        return 5;
-      case 'saturday':
-        return 6;
-      case 'sunday':
-        return 7;
-      default:
-        return 1;
     }
   }
 
