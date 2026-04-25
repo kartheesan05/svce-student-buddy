@@ -69,7 +69,7 @@ class ApiService {
     final response = await _safePost(
       Uri.parse('$_baseUrl/initial/auth'),
       headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: {'username': username, 'password': password},
+      body: {'username': username.toLowerCase(), 'password': password},
     );
 
     Map<String, dynamic>? data;
