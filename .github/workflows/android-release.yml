@@ -68,42 +68,36 @@ jobs:
           ${{ secrets.APP_SECRETS_JSON }}
           EOF
 
-      - name: Build signed release APK
-        run: flutter build apk --release --dart-define-from-file=secrets.json
+      - name: Build signed release APKs
+        run: flutter build apk --release --dart-define-from-file=secrets.json --split-per-abi
 
-      - name: Compute APK filename
+      - name: Rename APKs for release
         id: vars
         run: |
           VERSION="${GITHUB_REF_NAME:-manual}"
-          echo "apk_name=student-buddy-${VERSION}.apk" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
-      - name: Rename APK
-        run: |
-          cp build/app/outputs/flutter-apk/app-release.apk \
-            "build/app/outputs/flutter-apk/${{ steps.vars.outputs.apk_name }}"
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk \
+            "build/app/outputs/flutter-apk/svce-student-buddy-${VERSION}-armeabi-v7a.apk"
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
+            "build/app/outputs/flutter-apk/svce-student-buddy-${VERSION}-arm64-v8a.apk"
+          cp build/app/outputs/flutter-apk/app-x86_64-release.apk \
+            "build/app/outputs/flutter-apk/svce-student-buddy-${VERSION}-x86_64.apk"
 
-      - name: Create GitHub Release and upload APK
+      - name: Create GitHub Release and upload APKs
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
-          files: build/app/outputs/flutter-apk/${{ steps.vars.outputs.apk_name }}
+          files: |
+            build/app/outputs/flutter-apk/svce-student-buddy-${{ steps.vars.outputs.version }}-armeabi-v7a.apk
+            build/app/outputs/flutter-apk/svce-student-buddy-${{ steps.vars.outputs.version }}-arm64-v8a.apk
+            build/app/outputs/flutter-apk/svce-student-buddy-${{ steps.vars.outputs.version }}-x86_64.apk
           generate_release_notes: true
 
-      - name: Upload APK (versioned)
+      - name: Upload arm64 APK (latest)
         run: |
           aws s3 cp \
-            "build/app/outputs/flutter-apk/${{ steps.vars.outputs.apk_name }}" \
-            "s3://${{ secrets.R2_BUCKET_NAME }}/${{ steps.vars.outputs.apk_name }}" \
-            --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" \
-            --region auto
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-
-      - name: Upload APK (latest)
-        run: |
-          aws s3 cp \
-            "build/app/outputs/flutter-apk/${{ steps.vars.outputs.apk_name }}" \
+            "build/app/outputs/flutter-apk/app-arm64-v8a-release.apk" \
             "s3://${{ secrets.R2_BUCKET_NAME }}/student-buddy-latest.apk" \
             --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com" \
             --region auto \
